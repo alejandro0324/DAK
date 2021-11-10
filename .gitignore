@@ -1,2 +1,4 @@
-serviceAccountKey.json
-application.properties
+HELP.md
+target/
+!**/src/main/resources/serviceAccountKey.json
+!**/src/main/resources/application.properties
