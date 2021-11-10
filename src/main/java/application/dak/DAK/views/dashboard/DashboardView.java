@@ -7,7 +7,4 @@ import com.vaadin.flow.router.PageTitle;
 public class DashboardView extends VerticalLayout {
 
     public DashboardView(){
-
-    }
-
-}
+        /*Here goes the dashboard*/
