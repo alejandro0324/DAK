@@ -4,8 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7037e76f-54f1-4311-811c-5d2a388bc835" name="Default Changelist" comment="Comment">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+    <list default="true" id="7037e76f-54f1-4311-811c-5d2a388bc835" name="Default Changelist" comment="update gitignore 98">
+      <change beforePath="$PROJECT_DIR$/src/main/resources/application.properties" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application.properties" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -47,7 +47,28 @@
       <option name="project" value="LOCAL" />
       <updated>1636502934696</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="update gitignore 6">
+      <created>1636506059465</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1636506059465</updated>
+    </task>
+    <task id="LOCAL-00003" summary="update properties">
+      <created>1636506183336</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1636506183336</updated>
+    </task>
+    <task id="LOCAL-00004" summary="update gitignore 98">
+      <created>1636506301737</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1636506301737</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -63,6 +84,9 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Comment" />
-    <option name="LAST_COMMIT_MESSAGE" value="Comment" />
+    <MESSAGE value="update gitignore 6" />
+    <MESSAGE value="update properties" />
+    <MESSAGE value="update gitignore 98" />
+    <option name="LAST_COMMIT_MESSAGE" value="update gitignore 98" />
   </component>
 </project>
