@@ -166,6 +166,14 @@
 			<version>3.8.1</version>
 			<scope>test</scope>
 		</dependency>
+<!--
+		Dependency for google maps
+-->
+		<dependency>
+			<groupId>com.flowingcode.vaadin.addons</groupId>
+			<artifactId>google-maps</artifactId>
+			<version>1.4.0</version>
+		</dependency>
 	</dependencies>
 	<dependencyManagement>
 		<dependencies>
