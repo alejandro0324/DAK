@@ -1,3 +1,2 @@
-/src/**/*.properties
-
-/src/**/.json
+*.properties
+*.json
