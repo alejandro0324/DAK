@@ -3,7 +3,7 @@ package application.dak.DAK.backend.zones.services;
 import application.dak.DAK.backend.common.dto.Zone;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class ZoneService {
@@ -24,7 +24,7 @@ public class ZoneService {
         return false;
     }
 
-    public ArrayList<Zone> getZones(){
+    public List<Zone> getZones(){
         return null;
     }
 
