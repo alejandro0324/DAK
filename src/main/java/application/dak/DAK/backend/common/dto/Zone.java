@@ -11,6 +11,5 @@ import java.util.ArrayList;
 public class Zone {
     Integer id;
     String name;
-    String colour;
     ArrayList<LatLon> coordinates;
 }

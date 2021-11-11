@@ -2,10 +2,7 @@ package application.dak.DAK.views.zones;
 
 import application.dak.DAK.backend.common.dto.Zone;
 import application.dak.DAK.backend.zones.services.ZoneService;
-import com.flowingcode.vaadin.addons.googlemaps.GoogleMap;
-import com.flowingcode.vaadin.addons.googlemaps.GoogleMapMarker;
-import com.flowingcode.vaadin.addons.googlemaps.LatLon;
-import com.github.juchar.colorpicker.ColorPickerFieldRaw;
+import com.flowingcode.vaadin.addons.googlemaps.*;
 import com.vaadin.flow.component.Unit;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.formlayout.FormLayout;
@@ -28,6 +25,8 @@ import java.util.ArrayList;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static application.dak.DAK.backend.utils.Constants.APP_COLOUR;
+
 @PageTitle("Zones")
 @Slf4j
 public class ZonesView extends VerticalLayout {
@@ -38,6 +37,8 @@ public class ZonesView extends VerticalLayout {
     private final ZoneService zoneService;
     private final HorizontalLayout container;
     private Binder<Zone> binder;
+    private GoogleMapPolygon polygon;
+    private ArrayList<LatLon> polygonCoordinates;
 
     public ZonesView() {
         zoneService = ZoneService.getInstance();
@@ -60,7 +61,7 @@ public class ZonesView extends VerticalLayout {
     private void createForm() {
         instantiateFormVariables();
         Zone zoneBeingEdited = new Zone();
-        formLayout.setWidth(450, Unit.PIXELS);
+        formLayout.setWidth(500, Unit.PIXELS);
         HorizontalLayout configurationButtons = new HorizontalLayout();
         setButtons(configurationButtons);
         formLayout.add(configurationButtons);
@@ -68,10 +69,10 @@ public class ZonesView extends VerticalLayout {
         TextField name = new TextField();
         setNameTextField(name);
 
-        ColorPickerFieldRaw colorPickerField = new ColorPickerFieldRaw();
-        setColourPicker(colorPickerField);
+        Button displayPolygon = new Button("Display polygon", e -> createPolygon());
+        displayPolygon.setWidth("100%");
 
-        Label infoLabel = new Label("Do not forget to specify the coordinates of the zone");
+        Label infoLabel = new Label("Do not forget to specify the coordinates of the zone (Right click)");
 
         Button save = new Button("Save");
         Button reset = new Button("Reset");
@@ -79,14 +80,25 @@ public class ZonesView extends VerticalLayout {
         actions.add(save, reset);
         save.getStyle().set("marginRight", "10px");
         setBindingForName(name);
-        setBindingForColour(colorPickerField);
         save.addClickListener(event -> validateForm(zoneBeingEdited));
 
         reset.addClickListener(event -> binder.readBean(null));
 
         formLayout.add(name);
-        formLayout.addFormItem(colorPickerField, new Label("Select a colour"));
-        formLayout.add(infoLabel, actions);
+        formLayout.add(name, displayPolygon, infoLabel, actions);
+    }
+
+    private void createPolygon() {
+        polygonCoordinates = new ArrayList<>();
+        ArrayList<GoogleMapPoint> googleMapPoints = new ArrayList<>();
+        markers.forEach(i -> {
+            polygonCoordinates.add(i.getPosition());
+            googleMapPoints.add(new GoogleMapPoint(i.getPosition()));
+        });
+        polygon = new GoogleMapPolygon(googleMapPoints);
+        polygon.setFillColor(APP_COLOUR);
+        map.addPolygon(polygon);
+        removeMarkers();
     }
 
     private void instantiateFormVariables() {
@@ -99,31 +111,37 @@ public class ZonesView extends VerticalLayout {
     private void validateForm(Zone zoneBeingEdited) {
         if (isValid(zoneBeingEdited)) {
             log.info("name of zone: {} ", zoneBeingEdited.getName());
-            log.info("colour of zone: {}", zoneBeingEdited.getColour());
+            zoneBeingEdited.setCoordinates(polygonCoordinates);
+            addZone(zoneBeingEdited);
+            String text = "Zone " + zoneBeingEdited.getName() + " was successfully created";
+            Notification.show(text, 3000, Notification.Position.MIDDLE);
         } else {
             showErrors();
         }
     }
 
+    private void addZone(Zone zoneBeingEdited) {
+        zoneService.addZoneAsync(zoneBeingEdited);
+    }
+
     private boolean isValid(Zone zoneBeingEdited) {
-        return binder.writeBeanIfValid(zoneBeingEdited) && markers.size() > 0;
+        return binder.writeBeanIfValid(zoneBeingEdited) && polygon != null;
     }
 
     private void setButtons(HorizontalLayout layout) {
-        Button clearMap = new Button("Clear map", event -> removeMarkers());
+        Button clearMap = new Button("Clear map", event -> {
+            removeMarkers();
+            try {
+                map.removePolygon(polygon);
+            } catch (Exception e) {
+                log.info("An error occurred: {}", e.getMessage());
+            }
+        });
         clearMap.setIcon(new Icon(VaadinIcon.MAP_MARKER));
         Button collapseForm = new Button("Collapse", e -> container.remove(formLayout));
         collapseForm.setIcon(new Icon(VaadinIcon.COMPRESS_SQUARE));
 
         layout.add(clearMap, collapseForm);
-    }
-
-    private void setColourPicker(ColorPickerFieldRaw colorPickerField) {
-        colorPickerField.setRequiredIndicatorVisible(true);
-        colorPickerField.setHexEnabled(true);
-        colorPickerField.setHslEnabled(false);
-        colorPickerField.setRgbEnabled(false);
-        colorPickerField.setValue("ff8800");
     }
 
     private void setNameTextField(TextField name) {
@@ -144,17 +162,6 @@ public class ZonesView extends VerticalLayout {
         name.addValueChangeListener(event -> nameBinding.validate());
     }
 
-    private void setBindingForColour(ColorPickerFieldRaw colour) {
-        SerializablePredicate<String> colourPredicate = value -> colour.getTextField().getValue() != null && !colour.getValue().trim().isEmpty();
-        Binder.Binding<Zone, String> colourBinding = binder.forField(colour)
-                .withNullRepresentation("ff8800")
-                .withValidator(colourPredicate,
-                        "Please specify the colour of the zone")
-                .bind(Zone::getColour, Zone::setColour);
-
-        colour.addValueChangeListener(event -> colourBinding.validate());
-    }
-
     private void showErrors() {
         BinderValidationStatus<Zone> validate = binder.validate();
         String errorText = validate.getFieldValidationStatuses()
@@ -163,6 +170,8 @@ public class ZonesView extends VerticalLayout {
                 .map(Optional::get).distinct()
                 .collect(Collectors.joining(", "));
         Notification.show(errorText);
+        if (polygon == null)
+            Notification.show("You must display the zone before saving it");
     }
 
     private void configureGoogleMaps() {
@@ -178,14 +187,14 @@ public class ZonesView extends VerticalLayout {
     }
 
     private void addMarkers(LatLon latLon) {
-        GoogleMapMarker marker = new GoogleMapMarker("Coordinate", latLon, false);
+        GoogleMapMarker marker = new GoogleMapMarker("Coordinate", latLon, true);
         markers.add(marker);
         map.addMarker(marker);
     }
 
     private void removeMarkers() {
         for (GoogleMapMarker marker : markers) {
-            getUI().ifPresent(ui -> ui.access(() -> map.removeMarker(marker)));
+            map.removeMarker(marker);
         }
         markers = new ArrayList<>();
     }

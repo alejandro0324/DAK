@@ -10,8 +10,6 @@ function addCssBlock(block) {
 import $css_0 from 'Frontend/lumo.css';
 addCssBlock(`<custom-style><style>${$css_0}</style></custom-style>`);
 
-import '@appreciated/color-picker-field/theme/lumo/color-picker-field.js';
-import '@appreciated/color-picker/color-picker.js';
 import '@flowingcode/google-map/google-map-marker.js';
 import '@flowingcode/google-map/google-map-point.js';
 import '@flowingcode/google-map/google-map-poly.js';

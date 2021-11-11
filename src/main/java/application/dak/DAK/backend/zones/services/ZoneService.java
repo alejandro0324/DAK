@@ -16,8 +16,8 @@ public class ZoneService {
         return zoneService;
     }
 
-    public boolean addZone(){
-        return true;
+    public void addZoneAsync(Zone zoneBeingEdited){
+
     }
 
     public boolean removeZone(){
