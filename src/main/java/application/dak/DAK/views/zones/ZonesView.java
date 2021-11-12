@@ -1,13 +1,14 @@
 package application.dak.DAK.views.zones;
 
 import application.dak.DAK.backend.common.dto.Zone;
-import application.dak.DAK.backend.zones.services.ZoneService;
+import application.dak.DAK.backend.zones.components.ZonesClient;
 import com.flowingcode.vaadin.addons.googlemaps.*;
+import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.Unit;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
-import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.html.Label;
+import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
@@ -19,9 +20,11 @@ import com.vaadin.flow.data.binder.BinderValidationStatus;
 import com.vaadin.flow.data.binder.BindingValidationStatus;
 import com.vaadin.flow.function.SerializablePredicate;
 import com.vaadin.flow.router.PageTitle;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -29,22 +32,23 @@ import static application.dak.DAK.backend.utils.Constants.APP_COLOUR;
 
 @PageTitle("Zones")
 @Slf4j
+@AllArgsConstructor
 public class ZonesView extends VerticalLayout {
 
     private GoogleMap map;
     private FormLayout formLayout;
     private ArrayList<GoogleMapMarker> markers;
-    private final ZoneService zoneService;
     private final HorizontalLayout container;
     private Binder<Zone> binder;
     private GoogleMapPolygon polygon;
     private ArrayList<LatLon> polygonCoordinates;
+    private final ZonesClient client;
 
     public ZonesView() {
-        zoneService = ZoneService.getInstance();
         H2 title = new H2("Zones");
         setHorizontalComponentAlignment(Alignment.CENTER, title);
         add(title);
+        client = new ZonesClient();
         configureGoogleMaps();
         createForm();
         container = new HorizontalLayout();
@@ -69,7 +73,7 @@ public class ZonesView extends VerticalLayout {
         TextField name = new TextField();
         setNameTextField(name);
 
-        Button displayPolygon = new Button("Display polygon", e -> createPolygon());
+        Button displayPolygon = new Button("Display zone", e -> createPolygon());
         displayPolygon.setWidth("100%");
 
         Label infoLabel = new Label("Do not forget to specify the coordinates of the zone (Right click)");
@@ -121,7 +125,7 @@ public class ZonesView extends VerticalLayout {
     }
 
     private void addZone(Zone zoneBeingEdited) {
-        zoneService.addZoneAsync(zoneBeingEdited);
+        client.addZone(zoneBeingEdited);
     }
 
     private boolean isValid(Zone zoneBeingEdited) {
@@ -183,7 +187,54 @@ public class ZonesView extends VerticalLayout {
         map.setWidthFull();
         map.setHeight(400, Unit.PIXELS);
         map.setZoom(11);
+        loadZones();
+    }
 
+    private void loadZones() {
+        List<Zone> zones = client.getZones();
+        zones.forEach(this::displayZone);
+    }
+
+    private void displayZone(Zone zone) {
+        List<GoogleMapPoint> points = new ArrayList<>();
+        zone.getCoordinates().forEach(i -> points.add(new GoogleMapPoint(i)));
+        GoogleMapPolygon polygon = map.addPolygon(points);
+        polygon.setFillColor(APP_COLOUR);
+        polygon.addClickListener(event -> addInfoWindowToPolygon(zone));
+    }
+
+    private void addInfoWindowToPolygon(Zone zone) {
+        Dialog dialog = new Dialog();
+        dialog.setDraggable(true);
+        dialog.setCloseOnOutsideClick(true);
+        Button removeZoneButton = new Button("Remove zone", new Icon(VaadinIcon.TRASH));
+        removeZoneButton.addClickListener(i -> removeZone(zone));
+        VerticalLayout listZoneInfo = new VerticalLayout();
+        listZoneInfo.add(
+                new H4("Information of the zone"),
+                new H5("Zone's UUID: " + zone.getUuid()),
+                new H5("Zone's name: " + zone.getName()),
+                removeZoneButton);
+        dialog.add(listZoneInfo);
+        dialog.open();
+    }
+
+    private void removeZone(Zone zone) {
+        Dialog confirm = new Dialog();
+        String confirmationQuestion = "Are you sure you want to delete zone " + zone.getName() + "?";
+        confirm.add(new H4(confirmationQuestion),
+                new Text("This action cannot be undone"));
+        confirm.setCloseOnEsc(false);
+        confirm.setCloseOnOutsideClick(false);
+        Button confirmButton = new Button("Delete anyway", event -> {
+            client.removeZone(zone.getUuid());
+            confirm.close();
+            String text = "Zone " + zone.getName() + " has been successfully deleted";
+            Notification.show(text, 3000, Notification.Position.MIDDLE);
+        });
+        Button cancelButton = new Button("Cancel", event -> confirm.close());
+        confirm.add(new Div(confirmButton, cancelButton));
+        confirm.open();
     }
 
     private void addMarkers(LatLon latLon) {
