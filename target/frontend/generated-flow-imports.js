@@ -9,7 +9,13 @@ function addCssBlock(block) {
 }
 import $css_0 from 'Frontend/lumo.css';
 addCssBlock(`<custom-style><style>${$css_0}</style></custom-style>`);
+import $css_1 from 'Frontend/main.css';
+addCssBlock(`<custom-style><style>${$css_1}</style></custom-style>`);
 
+import '@flowingcode/google-map/google-map-marker.js';
+import '@flowingcode/google-map/google-map-point.js';
+import '@flowingcode/google-map/google-map-poly.js';
+import '@flowingcode/google-map/google-map.js';
 import '@polymer/iron-icon/iron-icon.js';
 import '@polymer/iron-list/iron-list.js';
 import '@vaadin/flow-frontend/comboBoxConnector-es6.js';
@@ -17,6 +23,7 @@ import '@vaadin/flow-frontend/contextMenuConnector-es6.js';
 import '@vaadin/flow-frontend/datepickerConnector.js';
 import '@vaadin/flow-frontend/dndConnector-es6.js';
 import '@vaadin/flow-frontend/flow-component-renderer.js';
+import '@vaadin/flow-frontend/googlemaps/geolocation.js';
 import '@vaadin/flow-frontend/gridConnector-es6.js';
 import '@vaadin/flow-frontend/gridProConnector.js';
 import '@vaadin/flow-frontend/ironListConnector-es6.js';

@@ -24,6 +24,11 @@ html {
   --lumo-error-color: hsl(0, 81%, 50%);
   --lumo-success-color: hsl(159, 76%, 57%);
   --lumo-success-contrast-color: hsl(159, 29%, 10%);
+  --lumo-size-xl: 4rem;
+  --lumo-size-l: 3rem;
+  --lumo-size-m: 2.5rem;
+  --lumo-size-s: 2rem;
+  --lumo-size-xs: 1.75rem;
 }
 
 [theme~="dark"] {

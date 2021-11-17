@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, sendPasswordResetEmail, createUserWithEmailAndPassword} from 'firebase/auth';
 
 var app;
 
@@ -47,3 +47,15 @@ window.lg = {
                 })
       },
   }
+   window.cr = {
+        create: function(email, password, view){
+            const auth = getAuth(app);
+            createUserWithEmailAndPassword(auth, email, password).
+                  then((userCredential) => {
+                    view.$server.createOk();
+                  })
+                  .catch((error) => {
+                    view.$server.createFail();
+                  })
+        },
+    }
