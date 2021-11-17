@@ -29,7 +29,7 @@ public class FirebaseService {
         return firebaseService;
     }
 
-    private static void setFirestore(){
+    public static void setFirestore(){
         try {
             FileInputStream serviceAccount =
                     new FileInputStream("./src/main/resources/serviceAccountKey.json");
