@@ -31,4 +31,9 @@ public class ZoneController {
     public void removeZone(@PathVariable("uuid") final String uuid){
         zoneService.removeZone(uuid);
     }
+
+    @PostMapping("/hello")
+    public Zone androidTest(@RequestBody final Zone zone){
+        return new Zone(0, zone.getName(), zone.getUuid(), null);
+    }
 }

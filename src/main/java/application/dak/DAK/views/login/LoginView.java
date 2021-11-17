@@ -35,6 +35,7 @@ public class LoginView extends VerticalLayout {
     Button loginButton = new Button("Login");
     EmailField mail = new EmailField("Mail");
     PasswordField password = new PasswordField("Password");
+    public static RouteConfiguration routes;
 
     public LoginView() {
         routeStarter();
@@ -50,7 +51,7 @@ public class LoginView extends VerticalLayout {
     }
 
     @ClientCallable
-    public void loginOk(String mail){
+    public void loginOk(String mail) {
         VaadinService.getCurrentRequest().getWrappedSession()
                 .setAttribute("mail", mail);
         routeSetter();
@@ -58,12 +59,12 @@ public class LoginView extends VerticalLayout {
     }
 
     @ClientCallable
-    public void loginError(){
+    public void loginError() {
         password.setInvalid(true);
         mail.setInvalid(true);
     }
 
-    public void routeStarter(){
+    public void routeStarter() {
         routes = RouteConfiguration.forSessionScope();
         routes.removeRoute("Menu");
         routes.removeRoute("Clients");
@@ -74,7 +75,7 @@ public class LoginView extends VerticalLayout {
         routes.removeRoute("Zones");
     }
 
-    public void routeSetter(){
+    public void routeSetter() {
         routes.setRoute("Menu", MainView.class, MainLayout.class);
         routes.setRoute("Clients", ClientsView.class, MainLayout.class);
         routes.setRoute("Configuration", ConfigurationView.class, MainLayout.class);
@@ -84,5 +85,4 @@ public class LoginView extends VerticalLayout {
         routes.setRoute("Zones", ZonesView.class, MainLayout.class);
     }
 
-    public static RouteConfiguration routes;
 }

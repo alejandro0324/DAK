@@ -3,7 +3,6 @@ package application.dak.DAK;
 import com.vaadin.flow.component.dependency.NpmPackage;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.ConfigurableApplicationContext;
 
 @SpringBootApplication
 @NpmPackage(value = "lumo-css-framework", version = "^4.0.10")

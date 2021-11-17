@@ -7,12 +7,12 @@ import java.util.List;
 
 @Mapper
 public interface ZoneMapper {
-    @Insert("INSERT INTO tZones (name, uuid, isEnabled) VALUES (#{zone.name}, #{zone.uuid}, 1)")
+    @Insert("INSERT INTO T_Zones (name, uuid, isEnabled) VALUES (#{zone.name}, #{zone.uuid}, 1)")
     void add(@Param("zone") final Zone zone);
 
-    @Update("UPDATE tZones SET isEnabled = 0 WHERE uuid = #{uuid} ")
+    @Update("UPDATE T_Zones SET isEnabled = 0 WHERE uuid = #{uuid} ")
     void remove(@Param("uuid") final String uuid);
 
-    @Select("SELECT id, name, uuid FROM tZones WHERE isEnabled = 1")
+    @Select("SELECT id, name, uuid FROM T_Zones WHERE isEnabled = 1")
     List<Zone> getElements();
 }

@@ -11,9 +11,9 @@ import java.util.List;
 @Mapper
 public interface CoordinateMapper {
 
-    @Insert("INSERT INTO tCoordinates (lat, lng, zoneUUID) VALUES (#{coordinate.lat}, #{coordinate.lng}, #{coordinate.zoneUUID})")
+    @Insert("INSERT INTO T_Coordinates (lat, lng, zoneUUID) VALUES (#{coordinate.lat}, #{coordinate.lng}, #{coordinate.zoneUUID})")
     void add(@Param("coordinate") final Coordinate coordinate);
 
-    @Select("SELECT lat, lng, zoneUUID FROM tCoordinates WHERE zoneUUID = #{zoneUUID}")
+    @Select("SELECT lat, lng, zoneUUID FROM T_Coordinates WHERE zoneUUID = #{zoneUUID}")
     List<Coordinate> getCoordinates(@Param("zoneUUID") final String zoneUUID);
 }
