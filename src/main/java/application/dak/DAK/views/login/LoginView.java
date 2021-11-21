@@ -55,6 +55,7 @@ public class LoginView extends VerticalLayout {
     public void loginOk(String mail) {
         VaadinService.getCurrentRequest().getWrappedSession()
                 .setAttribute("mail", mail);
+
         routeSetter();
         UI.getCurrent().navigate("Menu");
     }

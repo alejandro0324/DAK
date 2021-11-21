@@ -11,8 +11,6 @@ import com.vaadin.flow.server.VaadinService;
 public class MainView extends VerticalLayout {
 
     public MainView() {
-        Text text = new Text(VaadinService.getCurrentRequest().getWrappedSession()
-                .getAttribute("mail").toString());
-        add(text);
+
     }
 }
