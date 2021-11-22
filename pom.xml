@@ -184,9 +184,17 @@
             <groupId>com.flowingcode.vaadin.addons</groupId>
             <artifactId>google-maps</artifactId>
             <version>1.4.0</version>
-
         </dependency>
 
+        <!--
+                Dependency for google maps services
+        -->
+
+        <dependency>
+            <groupId>com.google.maps</groupId>
+            <artifactId>google-maps-services</artifactId>
+            <version>1.0.0</version>
+        </dependency>
     </dependencies>
     <dependencyManagement>
         <dependencies>
