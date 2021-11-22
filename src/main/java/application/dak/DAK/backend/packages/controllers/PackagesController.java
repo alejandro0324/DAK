@@ -40,4 +40,16 @@ public class PackagesController {
         return list;
     }
 
+    @GetMapping("/listAllReadyPackagesLike/{number}")
+    public List<Package> listAllReadyPackagesLike(@PathVariable("number") String number){
+        List<Package> list = packagesMapper.listAllReadyPackagesLike(number + "%");
+        return list;
+    }
+
+    @GetMapping("/listAllReadyPackages")
+    public List<Package> listAllReadyPackages(){
+        List<Package> list = packagesMapper.listAllReadyPackages();
+        return list;
+    }
+
 }

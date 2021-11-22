@@ -18,6 +18,12 @@ public interface PackagesMapper {
     @Select("SELECT * FROM T_Package WHERE number LIKE #{number}")
     public List<Package> getAllPackagesLike(@Param("number") final String number);
 
+    @Select("SELECT * FROM V_ReadyPackages WHERE number LIKE #{number}")
+    public List<Package> listAllReadyPackagesLike(@Param("number") final String number);
+
+    @Select("SELECT * FROM V_ReadyPackages")
+    public List<Package> listAllReadyPackages();
+
     @Insert("INSERT INTO T_Tracking(lat, lng) values (1, 1)")
     @Options(useGeneratedKeys = true, keyProperty="Id", keyColumn = "Id")
     public Integer createTracking(@Param("tracking") final Tracking tracking);

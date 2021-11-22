@@ -40,4 +40,16 @@ public class PackagesClient {
         final String url = baseURL + "createTracking";
         return restTemplate.postForObject(url, null, Tracking.class);
     }
+
+    public List<Package> listAllReadyPackages() {
+        final String url = baseURL + "listAllReadyPackages";
+        List<Package> list = new ArrayList<>();
+        return restTemplate.getForObject(url, list.getClass());
+    }
+
+    public List<Package> listAllReadyPackagesLike(String number) {
+        final String url = baseURL + "listAllReadyPackagesLike/" + number;
+        List<Package> list = new ArrayList<>();
+        return restTemplate.getForObject(url, list.getClass());
+    }
 }
