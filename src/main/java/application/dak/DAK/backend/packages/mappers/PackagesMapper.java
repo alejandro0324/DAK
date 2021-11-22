@@ -1,7 +1,5 @@
 package application.dak.DAK.backend.packages.mappers;
 
-import application.dak.DAK.backend.common.models.Client;
-import application.dak.DAK.backend.common.models.Company;
 import application.dak.DAK.backend.common.models.Package;
 import application.dak.DAK.backend.common.models.Tracking;
 import org.apache.ibatis.annotations.*;
@@ -13,18 +11,18 @@ import java.util.List;
 public interface PackagesMapper {
 
     @Select("SELECT * FROM T_Package")
-    public List<Package> getAllPackages();
+    List<Package> getAllPackages();
 
     @Select("SELECT * FROM T_Package WHERE number LIKE #{number}")
-    public List<Package> getAllPackagesLike(@Param("number") final String number);
+    List<Package> getAllPackagesLike(@Param("number") final String number);
 
     @Insert("INSERT INTO T_Tracking(lat, lng) values (1, 1)")
-    @Options(useGeneratedKeys = true, keyProperty="Id", keyColumn = "Id")
-    public Integer createTracking(@Param("tracking") final Tracking tracking);
+    @Options(useGeneratedKeys = true, keyProperty = "Id", keyColumn = "Id")
+    Integer createTracking(@Param("tracking") final Tracking tracking);
 
     @Insert("INSERT INTO T_DetTracking(trackingId, date, lat, lng) values (#{id}, #{date}, 1, 1)")
-    public void createTrackingDet(@Param("id") final Integer id, @Param("date") final Date date);
+    void createTrackingDet(@Param("id") final Integer id, @Param("date") final Date date);
 
     @Insert("INSERT INTO T_Package(price, startDate, state, lat, lng, trackingId, paymentTermId, transmitterId, receiverId) values (#{pack.Price}, #{pack.StartDate}, #{pack.State}, #{pack.lat},  #{pack.lng}, #{pack.trackingId}, #{pack.paymentTermId},  #{pack.transmitterId}, #{pack.receiverId})")
-    public void createPackage(@Param("pack") final Package pack);
+    void createPackage(@Param("pack") final Package pack);
 }

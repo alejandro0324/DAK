@@ -36,8 +36,7 @@ public class PackagesController {
 
     @GetMapping("/getAllPackagesLike/{number}")
     public List<Package> getAllPackagesLike(@PathVariable("number") String number){
-        List<Package> list = packagesMapper.getAllPackagesLike(number + "%");
-        return list;
+        return packagesMapper.getAllPackagesLike(number + "%");
     }
 
 }
