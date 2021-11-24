@@ -7,4 +7,5 @@ public class Constants {
     public static final Double CURRENT_LNG = -54.95567813432471;
     public static final String SPANISH = "es";
     public static final Double TAX = 300.0;
+    public static final String PDF_REPORTS_FOLDER = "src/main/java/application/dak/DAK/packagesReports/";
 }

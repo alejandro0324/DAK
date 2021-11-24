@@ -16,4 +16,16 @@ public class Person extends Client implements Serializable {
     private String Name;
     private String Surname;
     private String DNI;
+
+    @Override
+    public String toString() {
+        return "Person{" +
+                "Email='" + Email + '\'' +
+                "Telephone='" + Telephone + '\'' +
+                "Direction='" + Direction + '\'' +
+                "Name='" + Name + '\'' +
+                "Surname='" + Surname + '\'' +
+                "DNI='" + DNI + '\'' +
+                '}';
+    }
 }

@@ -22,7 +22,6 @@ import com.vaadin.flow.router.RouteConfiguration;
 import com.vaadin.flow.server.VaadinService;
 import com.vaadin.flow.theme.Theme;
 import com.vaadin.flow.theme.lumo.Lumo;
-import firebase.FirebaseService;
 
 @CssImport("./lumo.css")
 @Theme(value = Lumo.class)

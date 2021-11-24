@@ -2,7 +2,6 @@ package application.dak.DAK.views.configuration;
 
 import application.dak.DAK.backend.common.models.User;
 import application.dak.DAK.backend.common.parser.UserParser;
-import application.dak.DAK.backend.generalConfiguration.mappers.ConfigurationMapper;
 import application.dak.DAK.backend.generalConfiguration.services.ConfigurationClient;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
@@ -19,11 +18,9 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.component.textfield.*;
-import com.vaadin.flow.data.provider.ListDataProvider;
 import com.vaadin.flow.router.PageTitle;
-import firebase.FirebaseService;
+import application.dak.DAK.firebase.FirestoreService;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @PageTitle("Configuration")
@@ -31,8 +28,9 @@ import java.util.List;
 @JsModule("https://www.gstatic.com/firebasejs/ui/4.8.1/firebase-ui-auth.js")
 @JsModule("https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js")
 public class ConfigurationView extends VerticalLayout {
-
+    private final String TAG = "ConfigurationView";
     private final ConfigurationClient configurationClient;
+
     VerticalLayout generalConfigurationDiv = new VerticalLayout();
     VerticalLayout newUserDiv = new VerticalLayout();
     VerticalLayout usersListDiv = new VerticalLayout();
@@ -44,7 +42,7 @@ public class ConfigurationView extends VerticalLayout {
     Grid<User> usersGrid = new Grid<>();
 
     public ConfigurationView(){
-        FirebaseService.setFirestore();
+        FirestoreService.setFirestore();
         configurationClient = new ConfigurationClient();
         try {
         Tab usersList = new Tab("Users list");
@@ -109,6 +107,7 @@ public class ConfigurationView extends VerticalLayout {
                 ListUsersPage listUsersPage = FirebaseAuth.getInstance().listUsers(null);
                 List<User> listUsers = userParser.userParse(listUsersPage);
                 usersGrid.setItems(listUsers);
+                FirestoreService.getInstance().log(TAG, "User with uid of: " + user.getUUId() + " was successfully deleted");
             } catch (FirebaseAuthException ex) {
                 System.out.println(ex.getAuthErrorCode());
             }
@@ -132,6 +131,7 @@ public class ConfigurationView extends VerticalLayout {
             ListUsersPage listUsersPage = FirebaseAuth.getInstance().listUsers(null);
             List<User> listUsers = userParser.userParse(listUsersPage);
             usersGrid.setItems(listUsers);
+            FirestoreService.getInstance().log(TAG, "User correctly created");
         }catch (FirebaseAuthException ex) {
             ex.getAuthErrorCode();
         }
@@ -148,5 +148,6 @@ public class ConfigurationView extends VerticalLayout {
         configurationClient.configSave(TripTax);
         generalTripTax.setLabel("General Trip Tax (Currently: " + configurationClient.getTripTax() + ")");
         Notification.show("Save completed");
+        FirestoreService.getInstance().log(TAG, "Trip tax successfully updated");
     }
 }

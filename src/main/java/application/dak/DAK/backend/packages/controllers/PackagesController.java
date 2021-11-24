@@ -27,7 +27,7 @@ public class PackagesController {
 
     @PostMapping("/createTracking")
     public Tracking createTracking() {
-        Tracking tracking = new Tracking(UUID.randomUUID().toString(), CURRENT_LAT, CURRENT_LNG, null, new Date(System.currentTimeMillis()), PackageState.IN_LOCAL.toString(), null);
+        Tracking tracking = new Tracking(UUID.randomUUID().toString(), CURRENT_LAT, CURRENT_LNG, null, new Date(System.currentTimeMillis()), PackageState.IN_LOCAL.toString());
         packagesMapper.createTracking(tracking);
         packagesMapper.createTrackingDet(tracking);
         return tracking;

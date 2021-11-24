@@ -23,6 +23,7 @@ import '@vaadin/flow-frontend/comboBoxConnector-es6.js';
 import '@vaadin/flow-frontend/contextMenuConnector-es6.js';
 import '@vaadin/flow-frontend/datepickerConnector.js';
 import '@vaadin/flow-frontend/dndConnector-es6.js';
+import '@vaadin/flow-frontend/file-download-wrapper.js';
 import '@vaadin/flow-frontend/flow-component-renderer.js';
 import '@vaadin/flow-frontend/googlemaps/geolocation.js';
 import '@vaadin/flow-frontend/gridConnector-es6.js';

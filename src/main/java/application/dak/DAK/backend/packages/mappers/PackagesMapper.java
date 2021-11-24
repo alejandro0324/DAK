@@ -16,12 +16,12 @@ public interface PackagesMapper {
     @Select("SELECT * FROM T_Package WHERE number LIKE #{number}")
     List<Package> getAllPackagesLike(@Param("number") final String number);
 
-    @Insert("INSERT INTO T_Tracking(id, currentLat, currentLng, dateOfTracking, stateOfTracking, information) VALUES (#{tracking.id}, #{tracking.currentLat}, #{tracking.currentLng}, #{tracking.dateOfTracking}, #{tracking.stateOfTracking}, #{tracking.information})")
+    @Insert("INSERT INTO T_Tracking(id, currentLat, currentLng, dateOfTracking, stateOfTracking) VALUES (#{tracking.id}, #{tracking.currentLat}, #{tracking.currentLng}, #{tracking.dateOfTracking}, #{tracking.stateOfTracking})")
     Integer createTracking(@Param("tracking") final Tracking tracking);
 
-    @Insert("INSERT INTO T_Detail(trackingID, dateOfDetail, lat, lng, information) values (#{tracking.id}, #{tracking.dateOfTracking}, #{tracking.currentLat}, #{tracking.currentLng}, #{tracking.information})")
+    @Insert("INSERT INTO T_Detail(trackingID, dateOfDetail, lat, lng, information) values (#{tracking.id}, #{tracking.dateOfTracking}, #{tracking.currentLat}, #{tracking.currentLng}, #{tracking.stateOfTracking})")
     void createTrackingDet(@Param("tracking") final Tracking tracking);
 
-    @Insert("INSERT INTO T_Package (price, startDate, extraInfo, state, trackingId, paymentTermId, transmitterId, receiverId, lat, lng, address) VALUES (#{pack.Price}, #{pack.StartDate}, #{pack.ExtraInfo}, #{pack.State}, #{pack.trackingId}, #{pack.paymentTermId}, #{pack.transmitterId}, #{pack.receiverId}, #{pack.lat}, #{pack.lng}, #{pack.address})")
+    @Insert("INSERT INTO T_Package (price, startDate, extraInfo, state, trackingId, paymentTermId, transmitterId, receiverId, lat, lng, address, weight) VALUES (#{pack.Price}, #{pack.StartDate}, #{pack.ExtraInfo}, #{pack.State}, #{pack.trackingId}, #{pack.paymentTermId}, #{pack.transmitterId}, #{pack.receiverId}, #{pack.lat}, #{pack.lng}, #{pack.address}, #{pack.weight})")
     void createPackage(@Param("pack") final Package pack);
 }

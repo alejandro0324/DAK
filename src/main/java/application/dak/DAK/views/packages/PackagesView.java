@@ -9,6 +9,8 @@ import application.dak.DAK.backend.packages.services.PackagePayment;
 import application.dak.DAK.backend.packages.services.PackagesClient;
 import application.dak.DAK.backend.packages.services.PackagesService;
 import application.dak.DAK.backend.zones.components.ZonesClient;
+import application.dak.DAK.firebase.FirestoreService;
+import application.dak.DAK.iText.PDFGenerator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flowingcode.vaadin.addons.googlemaps.*;
@@ -21,6 +23,8 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.*;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -34,9 +38,15 @@ import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.PageTitle;
+import com.vaadin.flow.server.StreamResource;
 import com.vaadin.flow.server.VaadinService;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
+import org.vaadin.olli.FileDownloadWrapper;
 
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -47,6 +57,8 @@ import static application.dak.DAK.backend.utils.Constants.*;
 @Slf4j
 @PageTitle("Packages")
 public class PackagesView extends VerticalLayout {
+    private final String TAG = "PackagesView";
+
     private final ConfigurationClient configurationClient;
     private final PackagesService packagesService = new PackagesService();
     private final PackagePayment packagePayment = new PackagePayment();
@@ -318,6 +330,7 @@ public class PackagesView extends VerticalLayout {
         packagesGrid.addColumn(Package::getStartDate).setHeader("Start Date");
         packagesGrid.addColumn(Package::getFinishDate).setHeader("Finish Date");
         packagesGrid.addColumn(Package::getExtraInfo).setHeader("Extra info.");
+        packagesGrid.addColumn(Package::getAddress).setHeader("Address");
     }
 
     private void loadTransmitterPersonList() {
@@ -372,13 +385,55 @@ public class PackagesView extends VerticalLayout {
     }
 
     public void stepThree() {
+        configureStepThreeNavigation();
+
+        Package pack = new Package();
+        loadPackage(pack);
+        packagesClient.createPackage(pack);
+        FirestoreService.getInstance().log(TAG, "Package received: " + pack);
+        ObjectMapper mapper = new ObjectMapper();
+        List<Package> list = mapper.convertValue(packagesClient.getAllPackages(), new TypeReference<List<Package>>() {
+        });
+
+        packagesGrid.setItems(list);
+
+        String filename = PDF_REPORTS_FOLDER + pack.getTrackingId() + ".pdf";
+        stepThreeInfo.add(new H2("Transmitter Id: " + pack.getTransmitterId()), new H2("Tracking Id: " + pack.getTrackingId()));
+        if (generateFile(filename, pack))
+            stepThreeInfo.add(setDownloadButton(filename));
+    }
+
+    private FileDownloadWrapper setDownloadButton(String filename) {
+        File file = new File(filename);
+        Button button = new Button("Download package specification", new Icon(VaadinIcon.DOWNLOAD));
+        FileDownloadWrapper buttonWrapper = new FileDownloadWrapper(
+                new StreamResource("Package report.pdf", () -> {
+                    try {
+                        return new ByteArrayInputStream(FileUtils.readFileToByteArray(file));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    return null;
+                }));
+
+        buttonWrapper.wrapComponent(button);
+        return buttonWrapper;
+    }
+
+    private boolean generateFile(String filename, Package pack) {
+        PDFGenerator pdfGenerator = new PDFGenerator();
+        return pdfGenerator.createPackageReport(filename, pack);
+    }
+
+    private void configureStepThreeNavigation() {
         navigator.setSelectedTab(tab4);
         tab3.setEnabled(false);
         tab4.setEnabled(true);
         stepTwoDiv.setVisible(false);
         stepThreeDiv.setVisible(true);
+    }
 
-        Package pack = new Package();
+    private void loadPackage(Package pack) {
         pack.setExtraInfo(groupInfo.getValue());
         pack.setStartDate(new Date(System.currentTimeMillis()));
         pack.setPrice(Float.valueOf(finalPrice.getValue()));
@@ -393,14 +448,7 @@ public class PackagesView extends VerticalLayout {
                 .getAttribute("receiver").toString()));
         Tracking tracking = packagesClient.createTracking();
         pack.setTrackingId(tracking.getId());
-        packagesClient.createPackage(pack);
-
-        ObjectMapper mapper = new ObjectMapper();
-        List<Package> list = mapper.convertValue(packagesClient.getAllPackages(), new TypeReference<List<Package>>() {
-        });
-        packagesGrid.setItems(list);
-        //TODO: Create PDF with information of the package
-        stepThreeInfo.add(new H2("Transmitter Id: " + pack.getTransmitterId()), new H2("Tracking Id: " + pack.getTrackingId()), new H2("Package number: " + pack.getNumber()));
+        pack.setWeight(weight.getValue());
     }
 
     private int getPaymentID() {
@@ -424,6 +472,7 @@ public class PackagesView extends VerticalLayout {
         tab1.setEnabled(true);
         weight.clear();
         autocomplete.clear();
+        groupInfo.clear();
         receiverCompanyTypeList.setVisible(false);
         receiverPersonTypeList.setVisible(false);
         transmitterCompanyTypeList.setVisible(false);
@@ -733,7 +782,7 @@ public class PackagesView extends VerticalLayout {
         }
     }
 
-    public void autoCompleteAddressInput(HashMap<String, LatLng> coordinates) {
+    public void autoCompleteAddressInput(HashMap<String, LatLng> coordinates) throws NullPointerException {
         coordinatesByAddress = coordinates;
         getUI().ifPresent(ui -> ui.access(() -> {
             autocomplete.setOptions(new ArrayList<>(coordinates.keySet()));

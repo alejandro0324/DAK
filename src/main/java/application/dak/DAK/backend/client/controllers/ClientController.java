@@ -6,6 +6,7 @@ import application.dak.DAK.backend.common.models.Company;
 import application.dak.DAK.backend.common.models.Person;
 import application.dak.DAK.backend.common.models.SelectDto;
 import application.dak.DAK.backend.generalConfiguration.mappers.ConfigurationMapper;
+import application.dak.DAK.firebase.FirestoreService;
 import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,6 +19,7 @@ import java.util.List;
 public class ClientController {
 
     private final ClientMapper clientMapper;
+    private final String TAG = "ClientController";
 
     @PostMapping("/addPerson")
     public List<String> addPerson(@RequestBody final Person person) {
@@ -25,16 +27,16 @@ public class ClientController {
         List<Person> persons = clientMapper.getAllPersons();
         for (Person value : persons) {
             if (value.getDNI().equals(person.getDNI())) {
-                isOk.add("ERROR: Another person have the same DNI");
+                isOk.add("ERROR: Another person has the same DNI");
             }
         }
 
         if (isOk.isEmpty()) {
             clientMapper.addClient(person);
             clientMapper.addPerson(person);
-            isOk.add("Person correctly sign in, Id: " + person.getId());
+            isOk.add("Person correctly signed up, Id: " + person.getId());
         }
-
+        FirestoreService.getInstance().log(TAG, "Client (Person) successfully created " + person);
         return isOk;
     }
 
@@ -54,6 +56,7 @@ public class ClientController {
             isOk.add("Company correctly sign in, Id: " + company.getId());
         }
 
+        FirestoreService.getInstance().log(TAG, "Client (Company) successfully created " + company);
         return isOk;
     }
 
