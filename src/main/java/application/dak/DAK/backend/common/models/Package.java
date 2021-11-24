@@ -20,8 +20,9 @@ public class Package {
     public PackageState State;
     public float lat;
     public float lng;
-    public Integer trackingId;
+    public String trackingId;
     public Integer paymentTermId;
     public Integer transmitterId;
     public Integer receiverId;
+    public String address;
 }

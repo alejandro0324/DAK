@@ -16,13 +16,12 @@ public interface PackagesMapper {
     @Select("SELECT * FROM T_Package WHERE number LIKE #{number}")
     List<Package> getAllPackagesLike(@Param("number") final String number);
 
-    @Insert("INSERT INTO T_Tracking(lat, lng) values (1, 1)")
-    @Options(useGeneratedKeys = true, keyProperty = "Id", keyColumn = "Id")
+    @Insert("INSERT INTO T_Tracking(id, currentLat, currentLng, dateOfTracking, stateOfTracking, information) VALUES (#{tracking.id}, #{tracking.currentLat}, #{tracking.currentLng}, #{tracking.dateOfTracking}, #{tracking.stateOfTracking}, #{tracking.information})")
     Integer createTracking(@Param("tracking") final Tracking tracking);
 
-    @Insert("INSERT INTO T_DetTracking(trackingId, date, lat, lng) values (#{id}, #{date}, 1, 1)")
-    void createTrackingDet(@Param("id") final Integer id, @Param("date") final Date date);
+    @Insert("INSERT INTO T_Detail(trackingID, dateOfDetail, lat, lng, information) values (#{tracking.id}, #{tracking.dateOfTracking}, #{tracking.currentLat}, #{tracking.currentLng}, #{tracking.information})")
+    void createTrackingDet(@Param("tracking") final Tracking tracking);
 
-    @Insert("INSERT INTO T_Package(price, startDate, state, lat, lng, trackingId, paymentTermId, transmitterId, receiverId) values (#{pack.Price}, #{pack.StartDate}, #{pack.State}, #{pack.lat},  #{pack.lng}, #{pack.trackingId}, #{pack.paymentTermId},  #{pack.transmitterId}, #{pack.receiverId})")
+    @Insert("INSERT INTO T_Package (price, startDate, extraInfo, state, trackingId, paymentTermId, transmitterId, receiverId, lat, lng, address) VALUES (#{pack.Price}, #{pack.StartDate}, #{pack.ExtraInfo}, #{pack.State}, #{pack.trackingId}, #{pack.paymentTermId}, #{pack.transmitterId}, #{pack.receiverId}, #{pack.lat}, #{pack.lng}, #{pack.address})")
     void createPackage(@Param("pack") final Package pack);
 }

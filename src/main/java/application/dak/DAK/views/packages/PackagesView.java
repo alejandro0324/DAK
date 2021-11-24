@@ -11,10 +11,8 @@ import application.dak.DAK.backend.packages.services.PackagesService;
 import application.dak.DAK.backend.zones.components.ZonesClient;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.flowingcode.vaadin.addons.googlemaps.GoogleMap;
-import com.flowingcode.vaadin.addons.googlemaps.GoogleMapPoint;
-import com.flowingcode.vaadin.addons.googlemaps.GoogleMapPolygon;
-import com.flowingcode.vaadin.addons.googlemaps.LatLon;
+import com.flowingcode.vaadin.addons.googlemaps.*;
+import com.google.maps.model.LatLng;
 import com.vaadin.componentfactory.Autocomplete;
 import com.vaadin.flow.component.HtmlComponent;
 import com.vaadin.flow.component.UI;
@@ -24,6 +22,7 @@ import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.progressbar.ProgressBar;
 import com.vaadin.flow.component.select.Select;
@@ -36,7 +35,7 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.server.VaadinService;
-import com.google.maps.model.LatLng;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -45,14 +44,15 @@ import java.util.List;
 
 import static application.dak.DAK.backend.utils.Constants.*;
 
+@Slf4j
 @PageTitle("Packages")
 public class PackagesView extends VerticalLayout {
-
     private final ConfigurationClient configurationClient;
     private final PackagesService packagesService = new PackagesService();
     private final PackagePayment packagePayment = new PackagePayment();
     private final ClientClient clientClient;
     private final ZonesClient clientZones;
+    private GoogleMapMarker addressMarker;
     private static HashMap<String, LatLng> coordinatesByAddress = new HashMap<>();
     private GoogleMap map;
     PackagesClient packagesClient = new PackagesClient();
@@ -102,12 +102,14 @@ public class PackagesView extends VerticalLayout {
     H2 trackingId = new H2();
     H2 clientId = new H2();
     H2 packageId = new H2();
+    TextField groupInfo = new TextField("Group info");
 
     public PackagesView() {
         configurationClient = new ConfigurationClient();
         clientZones = new ZonesClient();
         clientClient = new ClientClient();
         backToList.setVisible(false);
+        stepOneDiv.setVisible(false);
         stepTwoDiv.setVisible(false);
         tab2.setEnabled(false);
         tab3.setEnabled(false);
@@ -151,15 +153,18 @@ public class PackagesView extends VerticalLayout {
                 receiverCompanyTypeList);
         SplitLayout splitClients = new SplitLayout(transmitterLayout, receiverLayout);
         splitClients.setSizeFull();
-        autocomplete.setPlaceholder("Type the address where it is going to go...");
-        autocomplete.setLabel("Type address");
-        autocomplete.setWidth(30f, Unit.EM);
-        autocomplete.addValueChangeListener(event -> packagesService.getCoordinatesFromAddress(event.getValue()));
-        autocomplete.addAutocompleteValueAppliedListener(event -> packagesService.setDestination(coordinatesByAddress.get(event.getValue())));
         configureGoogleMaps();
+        configureAutoCompleteInput();
         weight.setPlaceholder("KG");
         Button continueButtonStepOne = new Button("Continue");
-        stepOneDiv.add(backToList, splitClients, autocomplete, map, weight, continueButtonStepOne);
+        HorizontalLayout horizontalLayout = new HorizontalLayout();
+        VerticalLayout verticalLayout = new VerticalLayout();
+        verticalLayout.add(autocomplete, weight, groupInfo);
+        horizontalLayout.add(map, verticalLayout);
+        horizontalLayout.setSpacing(true);
+        horizontalLayout.setPadding(true);
+        horizontalLayout.setAlignItems(Alignment.CENTER);
+        stepOneDiv.add(backToList, splitClients, horizontalLayout, continueButtonStepOne);
 
         loadTransmitterPersonList();
         loadReceiverPersonList();
@@ -170,12 +175,10 @@ public class PackagesView extends VerticalLayout {
         paymentTermSelector.setWidth(30f, Unit.EM);
         paymentTermSelector.setItems("Credit", "Debit", "Cash", "MercadoPago");
 
-
         configureCashTerms();
         configureCreditTerms();
         configureDebitTerms();
         configureMercadoPago();
-
 
         stepTwoDiv.add(new H2("Final price:"), finalPrice, paymentTermSelector);
 
@@ -186,15 +189,24 @@ public class PackagesView extends VerticalLayout {
         stepThreeDiv.add(new H1("Final package information:"), stepThreeInfo, finalOkButton);
 
         add(navigator, listDiv, stepOneDiv, stepTwoDiv, stepThreeDiv);
+        setListeners();
+        continueButtonStepOne.addClickListener(i -> stepOneFinish());
+        finalOkButton.addClickListener(i -> returnToList());
+    }
+
+    private void setListeners() {
         transmitterTypeSelector.addValueChangeListener(i -> transmitterSelectedType(i.getValue()));
         receiverTypeSelector.addValueChangeListener(i -> receiverSelectedType(i.getValue()));
         paymentTermSelector.addValueChangeListener(i -> paymentTermSelected(i.getValue()));
-        continueButtonStepOne.addClickListener(i -> stepOneFinish());
         receiverFilter.setValueChangeMode(ValueChangeMode.EAGER);
         receiverFilter.addValueChangeListener(e -> updateReceiverList());
         transmitterFilter.setValueChangeMode(ValueChangeMode.EAGER);
         transmitterFilter.addValueChangeListener(e -> updateTransmitterList());
         packagesReception.addClickListener(i -> stepOne());
+        setPaymentListeners();
+    }
+
+    private void setPaymentListeners() {
         endMercadoPagoButton.addClickListener(i -> {
             mercadoPagoTerm.close();
             stepThree();
@@ -207,7 +219,31 @@ public class PackagesView extends VerticalLayout {
             debitTerm.close();
             stepThree();
         });
-        finalOkButton.addClickListener(i -> returnToList());
+    }
+
+    private void configureAutoCompleteInput() {
+        autocomplete.setPlaceholder("Type the address where it is going to go...");
+        autocomplete.setLabel("Type address");
+        autocomplete.setWidth(30f, Unit.EM);
+        autocomplete.addChangeListener(event -> {
+            packagesService.getCoordinatesFromAddress(event.getValue());
+            loadAddresses();
+        });
+        autocomplete.addAutocompleteValueAppliedListener(event -> {
+            LatLng coordinate = coordinatesByAddress.get(event.getValue());
+            packagesService.setDestination(coordinate);
+            map.setCenter(new LatLon(coordinate.lat, coordinate.lng));
+            addressMarker = new GoogleMapMarker("", new LatLon(coordinate.lat, coordinate.lng), false);
+            map.addMarker(addressMarker);
+        });
+    }
+
+    private void loadAddresses() {
+        try {
+            autoCompleteAddressInput(packagesService.getCoordinates());
+        } catch (Exception e) {
+            loadAddresses();
+        }
     }
 
     private void configureCashTerms() {
@@ -343,27 +379,14 @@ public class PackagesView extends VerticalLayout {
         stepThreeDiv.setVisible(true);
 
         Package pack = new Package();
+        pack.setExtraInfo(groupInfo.getValue());
         pack.setStartDate(new Date(System.currentTimeMillis()));
         pack.setPrice(Float.valueOf(finalPrice.getValue()));
-        pack.setLng(1);
-        pack.setLng(1);
+        pack.setLat((float) addressMarker.getPosition().getLat());
+        pack.setLng((float) addressMarker.getPosition().getLon());
+        pack.setAddress(autocomplete.getValue());
         pack.setState(PackageState.IN_LOCAL);
-        int paymentId = 3;
-        switch (paymentTermSelector.getValue()) {
-            case "Credit":
-                paymentId = 2;
-                break;
-            case "Debit":
-                paymentId = 1;
-                break;
-            case "MercadoPago":
-                paymentId = 4;
-                break;
-            case "Cash":
-                paymentId = 3;
-                break;
-        }
-        pack.setPaymentTermId(paymentId);
+        pack.setPaymentTermId(getPaymentID());
         pack.setTransmitterId(Integer.parseInt(VaadinService.getCurrentRequest().getWrappedSession()
                 .getAttribute("transmitter").toString()));
         pack.setReceiverId(Integer.parseInt(VaadinService.getCurrentRequest().getWrappedSession()
@@ -376,7 +399,21 @@ public class PackagesView extends VerticalLayout {
         List<Package> list = mapper.convertValue(packagesClient.getAllPackages(), new TypeReference<List<Package>>() {
         });
         packagesGrid.setItems(list);
+        //TODO: Create PDF with information of the package
         stepThreeInfo.add(new H2("Transmitter Id: " + pack.getTransmitterId()), new H2("Tracking Id: " + pack.getTrackingId()), new H2("Package number: " + pack.getNumber()));
+    }
+
+    private int getPaymentID() {
+        switch (paymentTermSelector.getValue()) {
+            case "Credit":
+                return 2;
+            case "Debit":
+                return 1;
+            case "MercadoPago":
+                return 4;
+            default:
+                return 3;
+        }
     }
 
     public void returnToList() {
@@ -519,11 +556,19 @@ public class PackagesView extends VerticalLayout {
         Integer clientId = Integer.parseInt(VaadinService.getCurrentRequest().getWrappedSession()
                 .getAttribute("transmitter").toString());
         Client client = clientClient.getClient(clientId);
-        packagesService.KG = Float.parseFloat(weight.getValue().toString());
+        packagesService.setKG(Float.parseFloat(weight.getValue().toString()));
         packagesService.tripTax = configurationClient.getTripTax();
         Integer groupId = client.getClientGroupId();
         packagesService.setStrategy(groupId);
-        finalPrice.setValue(packagesService.calculatePrice());
+        setValue();
+    }
+
+    private void setValue() {
+        try {
+            finalPrice.setValue(packagesService.calculatePrice());
+        } catch (Exception e) {
+            setValue();
+        }
     }
 
     public void stepOneFinish() {
@@ -641,8 +686,8 @@ public class PackagesView extends VerticalLayout {
         map.setMapType(GoogleMap.MapType.ROADMAP);
         map.setCenter(new LatLon(CURRENT_LAT, CURRENT_LNG));
         map.setSizeFull();
-        map.setWidthFull();
-        map.setHeight(400, Unit.PIXELS);
+        map.setWidth(850, Unit.PIXELS);
+        map.setHeight(350, Unit.PIXELS);
         map.setZoom(11);
         loadZones();
     }
@@ -688,9 +733,10 @@ public class PackagesView extends VerticalLayout {
         }
     }
 
-    public static void autoCompleteAddressInput(HashMap<String, LatLng> coordinates) {
+    public void autoCompleteAddressInput(HashMap<String, LatLng> coordinates) {
         coordinatesByAddress = coordinates;
-        autocomplete.setOptions((List<String>) coordinates.keySet());
+        getUI().ifPresent(ui -> ui.access(() -> {
+            autocomplete.setOptions(new ArrayList<>(coordinates.keySet()));
+        }));
     }
-
 }

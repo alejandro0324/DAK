@@ -4,29 +4,46 @@ import application.dak.DAK.backend.common.models.StrategyPrice;
 import application.dak.DAK.backend.common.models.StrategyPrice1;
 import application.dak.DAK.backend.common.models.StrategyPrice2;
 import application.dak.DAK.backend.common.models.StrategyPrice3;
-import application.dak.DAK.views.packages.PackagesView;
-import com.flowingcode.vaadin.addons.googlemaps.LatLon;
 import com.google.maps.*;
 import com.google.maps.model.*;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 
 import static application.dak.DAK.backend.utils.Constants.*;
 import static com.google.maps.FindPlaceFromTextRequest.InputType.TEXT_QUERY;
 
-@Service
 @Slf4j
 public class PackagesService {
     public Integer tripTax;
-    public Float KG;
-    public Float KM;
-    private StrategyPrice strategyPrice;
+
+
+    private Float KG;
+    private Float KM;
+    private static StrategyPrice strategyPrice;
     private LatLng destination;
+    private HashMap<String, LatLng> coordinates;
     private final GeoApiContext geoApiContext;
+
+    public HashMap<String, LatLng> getCoordinates() {
+        return coordinates;
+    }
+
+    public void setKG(Float KG) {
+        this.KG = KG;
+    }
+
+    public void setKM(Float KM) {
+        this.KM = KM;
+    }
+
+    public Float getKG() {
+        return KG;
+    }
+
+    public Float getKM() {
+        return KM;
+    }
 
     public PackagesService() {
         this.geoApiContext = new GeoApiContext.Builder()
@@ -35,41 +52,20 @@ public class PackagesService {
     }
 
     public void setDestination(LatLng destination) {
-        this.destination = destination; //TODO: Set the destination in any point
-    }
-
-    public void getCoordinatesFromAddress(String address) {
-        FindPlaceFromTextRequest request = PlacesApi.findPlaceFromText(geoApiContext, address, TEXT_QUERY);
-        request.language(SPANISH);
-        request.fields(FindPlaceFromTextRequest.FieldMask.FORMATTED_ADDRESS, FindPlaceFromTextRequest.FieldMask.GEOMETRY);
-        request.setCallback(new PendingResult.Callback<>() {
-            @Override
-            public void onResult(FindPlaceFromText findPlaceFromText) {
-                HashMap<String, LatLng> coordinates = new HashMap<>();
-                for (PlacesSearchResult candidate : findPlaceFromText.candidates) {
-                    coordinates.put(candidate.formattedAddress, candidate.geometry.location);
-                }
-                PackagesView.autoCompleteAddressInput(coordinates);
-            }
-
-            @Override
-            public void onFailure(Throwable throwable) {
-                log.error("An error occurred {}", throwable.getMessage());
-            }
-        });
+        this.destination = destination;
     }
 
     public String calculatePrice() {
-        return strategyPrice.execute().toString();
+        return String.valueOf(strategyPrice.execute());
     }
 
     public void setStrategy(Integer groupId) {
         switch (groupId) {
             case 1:
-                this.strategyPrice = new StrategyPrice1(tripTax);
+                strategyPrice = new StrategyPrice1();
                 break;
             case 2:
-                this.strategyPrice = new StrategyPrice2(KG, tripTax);
+                strategyPrice = new StrategyPrice2(KG, tripTax);
                 break;
             case 3:
                 calculateKilometres();
@@ -85,7 +81,27 @@ public class PackagesService {
             @Override
             public void onResult(DistanceMatrix distanceMatrix) {
                 KM = (float) (distanceMatrix.rows[0].elements[0].distance.inMeters / 1000);
-                strategyPrice = new StrategyPrice3(KG, KM);
+                strategyPrice = new StrategyPrice3(KG, KM, tripTax);
+            }
+            @Override
+            public void onFailure(Throwable throwable) {
+                log.error("An error occurred {}", throwable.getMessage());
+            }
+        });
+    }
+
+    public void getCoordinatesFromAddress(String address) {
+        FindPlaceFromTextRequest request = PlacesApi.findPlaceFromText(geoApiContext, address, TEXT_QUERY);
+        request.language(SPANISH);
+        request.fields(FindPlaceFromTextRequest.FieldMask.FORMATTED_ADDRESS, FindPlaceFromTextRequest.FieldMask.GEOMETRY);
+        request.setCallback(new PendingResult.Callback<>() {
+            @Override
+            public void onResult(FindPlaceFromText findPlaceFromText) {
+                coordinates = new HashMap<>();
+                for (PlacesSearchResult candidate : findPlaceFromText.candidates) {
+                    log.info(candidate.formattedAddress);
+                    coordinates.put(candidate.formattedAddress, candidate.geometry.location);
+                }
             }
 
             @Override

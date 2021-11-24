@@ -9,7 +9,7 @@ public class StrategyPrice2 implements StrategyPrice {
     public Integer tripTax;
 
     @Override
-    public Float execute() {
+    public double execute() {
         return (float) (tripTax * KG);
     }
 }
