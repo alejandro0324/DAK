@@ -7,9 +7,10 @@ public class StrategyPrice3 implements StrategyPrice {
 
     public Float KG;
     public Float KM;
+    public Integer tripTax;
 
     @Override
-    public Float execute() {
-        return null;
+    public double execute() {
+        return tripTax * KM * 0.25;
     }
 }

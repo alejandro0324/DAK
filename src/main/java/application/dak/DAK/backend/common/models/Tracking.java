@@ -5,12 +5,17 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.Date;
+
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
 @Setter
 public class Tracking {
-    public Integer Id;
-    public float lat;
-    public float lng;
+    private String id;
+    private Double currentLat;
+    private Double currentLng;
+    private String carID;
+    private Date dateOfTracking;
+    private String stateOfTracking;
 }

@@ -1,4 +1,4 @@
-package firebase;
+package application.dak.DAK.firebase;
 
 import application.dak.DAK.backend.common.dto.Log;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -13,20 +13,20 @@ import java.util.UUID;
 
 import static application.dak.DAK.backend.utils.Constants.LOG_COLLECTION;
 
-public class FirebaseService {
+public class FirestoreService {
 
     public static FirebaseApp firebaseApp;
     private static Firestore firebaseDB;
-    private static FirebaseService firebaseService;
+    private static FirestoreService firestoreService;
 
-    private FirebaseService(){
+    private FirestoreService(){
         setFirestore();
     }
 
-    public static FirebaseService getInstance(){
-        if(firebaseService == null)
-            firebaseService = new FirebaseService();
-        return firebaseService;
+    public static FirestoreService getInstance(){
+        if(firestoreService == null)
+            firestoreService = new FirestoreService();
+        return firestoreService;
     }
 
     public static void setFirestore(){

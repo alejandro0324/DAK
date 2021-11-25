@@ -13,4 +13,15 @@ public class Company extends Client{
     private Integer clientId;
     private String RUT;
     private String BusinessName;
+
+    @Override
+    public String toString() {
+        return "Company{" +
+                "Email='" + Email + '\'' +
+                ", Telephone='" + Telephone + '\'' +
+                ", Direction='" + Direction + '\'' +
+                ", RUT='" + RUT + '\'' +
+                ", BusinessName='" + BusinessName + '\'' +
+                '}';
+    }
 }

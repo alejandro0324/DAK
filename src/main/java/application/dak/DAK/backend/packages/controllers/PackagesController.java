@@ -8,6 +8,10 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
+
+import static application.dak.DAK.backend.utils.Constants.CURRENT_LAT;
+import static application.dak.DAK.backend.utils.Constants.CURRENT_LNG;
 
 @RestController
 @RequestMapping("/packages")
@@ -23,9 +27,9 @@ public class PackagesController {
 
     @PostMapping("/createTracking")
     public Tracking createTracking() {
-        Tracking tracking = new Tracking();
+        Tracking tracking = new Tracking(UUID.randomUUID().toString(), CURRENT_LAT, CURRENT_LNG, null, new Date(System.currentTimeMillis()), PackageState.IN_LOCAL.toString());
         packagesMapper.createTracking(tracking);
-        packagesMapper.createTrackingDet(tracking.getId(), new Date(System.currentTimeMillis()));
+        packagesMapper.createTrackingDet(tracking);
         return tracking;
     }
 
@@ -36,8 +40,7 @@ public class PackagesController {
 
     @GetMapping("/getAllPackagesLike/{number}")
     public List<Package> getAllPackagesLike(@PathVariable("number") String number){
-        List<Package> list = packagesMapper.getAllPackagesLike(number + "%");
-        return list;
+        return packagesMapper.getAllPackagesLike(number + "%");
     }
 
     @GetMapping("/listAllReadyPackagesLike/{number}")

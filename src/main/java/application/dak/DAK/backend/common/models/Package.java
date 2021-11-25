@@ -12,16 +12,29 @@ import java.util.Date;
 @Getter
 @Setter
 public class Package {
-    public Integer Number;
-    public Float Price;
-    public Date StartDate;
-    public Date FinishDate;
-    public String ExtraInfo;
-    public PackageState State;
-    public float lat;
-    public float lng;
-    public Integer trackingId;
-    public Integer paymentTermId;
-    public Integer transmitterId;
-    public Integer receiverId;
+    private Integer Number;
+    private Float Price;
+    private Date StartDate;
+    private Date FinishDate;
+    private String ExtraInfo;
+    private PackageState State;
+    private float lat;
+    private float lng;
+    private String trackingId;
+    private Integer paymentTermId;
+    private Integer transmitterId;
+    private Integer receiverId;
+    private String address;
+    private Double weight;
+
+    @Override
+    public String toString() {
+        return "Package{" +
+                " Price=" + Price +
+                "StartDate=" + StartDate +
+                ", trackingId='" + trackingId + '\'' +
+                ", address='" + address + '\'' +
+                ", weight=" + weight +
+                '}';
+    }
 }

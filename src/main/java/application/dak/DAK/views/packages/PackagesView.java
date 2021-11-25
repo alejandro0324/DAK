@@ -2,30 +2,31 @@ package application.dak.DAK.views.packages;
 
 import application.dak.DAK.backend.client.services.ClientClient;
 import application.dak.DAK.backend.common.dto.Zone;
-import application.dak.DAK.backend.common.models.*;
 import application.dak.DAK.backend.common.models.Package;
+import application.dak.DAK.backend.common.models.*;
 import application.dak.DAK.backend.generalConfiguration.services.ConfigurationClient;
 import application.dak.DAK.backend.packages.services.PackagePayment;
 import application.dak.DAK.backend.packages.services.PackagesClient;
 import application.dak.DAK.backend.packages.services.PackagesService;
 import application.dak.DAK.backend.zones.components.ZonesClient;
+import application.dak.DAK.firebase.FirestoreService;
+import application.dak.DAK.iText.PDFGenerator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.flowingcode.vaadin.addons.googlemaps.GoogleMap;
-import com.flowingcode.vaadin.addons.googlemaps.GoogleMapPoint;
-import com.flowingcode.vaadin.addons.googlemaps.GoogleMapPolygon;
+import com.flowingcode.vaadin.addons.googlemaps.*;
+import com.google.maps.model.LatLng;
+import com.vaadin.componentfactory.Autocomplete;
 import com.vaadin.flow.component.HtmlComponent;
-import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.Unit;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
-import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.progressbar.ProgressBar;
 import com.vaadin.flow.component.select.Select;
@@ -34,27 +35,37 @@ import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.NumberField;
-import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.PageTitle;
+import com.vaadin.flow.server.StreamResource;
 import com.vaadin.flow.server.VaadinService;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
+import org.vaadin.olli.FileDownloadWrapper;
 
-import java.text.SimpleDateFormat;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 
-import static application.dak.DAK.backend.utils.Constants.APP_COLOUR;
+import static application.dak.DAK.backend.utils.Constants.*;
 
+@Slf4j
 @PageTitle("Packages")
 public class PackagesView extends VerticalLayout {
+    private final String TAG = "PackagesView";
 
     private final ConfigurationClient configurationClient;
-    private PackagesService packagesService = new PackagesService();
-    private PackagePayment packagePayment = new PackagePayment();
+    private final PackagesService packagesService = new PackagesService();
+    private final PackagePayment packagePayment = new PackagePayment();
     private final ClientClient clientClient;
     private final ZonesClient clientZones;
+    private GoogleMapMarker addressMarker;
+    private static HashMap<String, LatLng> coordinatesByAddress = new HashMap<>();
     private GoogleMap map;
     PackagesClient packagesClient = new PackagesClient();
     Grid<Package> packagesGrid = new Grid();
@@ -75,7 +86,7 @@ public class PackagesView extends VerticalLayout {
     TextField receiverFilter = new TextField();
     Grid<Person> receiverPersonTypeList = new Grid<>();
     Grid<Company> receiverCompanyTypeList = new Grid<>();
-    TextField address = new TextField();
+    static Autocomplete autocomplete = new Autocomplete(5);
     Button backToList = new Button("Go back");
     NumberField weight = new NumberField("Weight");
     TextField finalPrice = new TextField();
@@ -103,12 +114,14 @@ public class PackagesView extends VerticalLayout {
     H2 trackingId = new H2();
     H2 clientId = new H2();
     H2 packageId = new H2();
+    TextField groupInfo = new TextField("Group info");
 
-    public PackagesView(){
+    public PackagesView() {
         configurationClient = new ConfigurationClient();
         clientZones = new ZonesClient();
         clientClient = new ClientClient();
         backToList.setVisible(false);
+        stepOneDiv.setVisible(false);
         stepTwoDiv.setVisible(false);
         tab2.setEnabled(false);
         tab3.setEnabled(false);
@@ -116,13 +129,10 @@ public class PackagesView extends VerticalLayout {
         stepThreeDiv.setVisible(false);
 
         ObjectMapper mapper = new ObjectMapper();
-        List<Package> list = mapper.convertValue(packagesClient.getAllPackages(), new TypeReference<List<Package>>(){});
-        packagesGrid.setItems(list);
-        packagesGrid.addColumn(Package::getNumber).setHeader("Number");
-        packagesGrid.addColumn(Package::getState).setHeader("State");
-        packagesGrid.addColumn(Package::getStartDate).setHeader("Start Date");
-        packagesGrid.addColumn(Package::getFinishDate).setHeader("Finish Date");
-        packagesGrid.addColumn(Package::getExtraInfo).setHeader("Extra info.");
+        List<Package> list = mapper.convertValue(packagesClient.getAllPackages(), new TypeReference<List<Package>>() {
+        });
+        loadPackagesGrid(list);
+
         navigator.add(tab1, tab2, tab3, tab4);
         packagesFilter.setPlaceholder("Filter by Number...");
         packagesFilter.setWidth(30f, Unit.EM);
@@ -155,28 +165,21 @@ public class PackagesView extends VerticalLayout {
                 receiverCompanyTypeList);
         SplitLayout splitClients = new SplitLayout(transmitterLayout, receiverLayout);
         splitClients.setSizeFull();
-        address.setPlaceholder("Type the address where it is going to go...");
-        address.setWidth(30f, Unit.EM);
         configureGoogleMaps();
+        configureAutoCompleteInput();
         weight.setPlaceholder("KG");
         Button continueButtonStepOne = new Button("Continue");
-        stepOneDiv.add(backToList, splitClients, address, map, weight, continueButtonStepOne);
+        HorizontalLayout horizontalLayout = new HorizontalLayout();
+        VerticalLayout verticalLayout = new VerticalLayout();
+        verticalLayout.add(autocomplete, weight, groupInfo);
+        horizontalLayout.add(map, verticalLayout);
+        horizontalLayout.setSpacing(true);
+        horizontalLayout.setPadding(true);
+        horizontalLayout.setAlignItems(Alignment.CENTER);
+        stepOneDiv.add(backToList, splitClients, horizontalLayout, continueButtonStepOne);
 
-        transmitterPersonTypeList.addColumn(Person::getClientId).setHeader("Id");
-        transmitterPersonTypeList.addColumn(Person::getDNI).setHeader("DNI");
-        transmitterPersonTypeList.addColumn(Person::getName).setHeader("Name");
-        transmitterPersonTypeList.addColumn(Person::getSurname).setHeader("Surname");
-        transmitterCompanyTypeList.addColumn(Company::getClientId ).setHeader("Id");
-        transmitterCompanyTypeList.addColumn(Company::getRUT).setHeader("RUT");
-        transmitterCompanyTypeList.addColumn(Company::getBusinessName).setHeader("Business Name");
-
-        receiverPersonTypeList.addColumn(Person::getClientId).setHeader("Id");
-        receiverPersonTypeList.addColumn(Person::getDNI).setHeader("DNI");
-        receiverPersonTypeList.addColumn(Person::getName).setHeader("Name");
-        receiverPersonTypeList.addColumn(Person::getSurname).setHeader("Surname");
-        receiverCompanyTypeList.addColumn(Company::getClientId ).setHeader("Id");
-        receiverCompanyTypeList.addColumn(Company::getRUT).setHeader("RUT");
-        receiverCompanyTypeList.addColumn(Company::getBusinessName).setHeader("Business Name");
+        loadTransmitterPersonList();
+        loadReceiverPersonList();
 
         finalPrice.setReadOnly(true);
         finalPrice.setWidth(30f, Unit.EM);
@@ -184,68 +187,10 @@ public class PackagesView extends VerticalLayout {
         paymentTermSelector.setWidth(30f, Unit.EM);
         paymentTermSelector.setItems("Credit", "Debit", "Cash", "MercadoPago");
 
-        cashTerm.setCloseOnOutsideClick(false);
-        Button continueCashButton = new Button("Continue");
-        Button cancelCashButton = new Button("Cancel");
-        cashTerm.add(new H2("Press continue when the payment ends..."), continueCashButton, new HtmlComponent("br"), new H3("Or cancel..."), cancelCashButton);
-        continueCashButton.addClickListener(i -> {
-            cashTerm.close();
-            stepThree();
-        });
-        cancelCashButton.addClickListener(i -> {
-            cashTerm.close();
-            returnToList();
-        });
-
-        creditTerm.setCloseOnOutsideClick(false);
-        endCreditButton.setVisible(false);
-        ProgressBar progressCreditBar = new ProgressBar();
-        progressCreditBar.setIndeterminate(true);
-        progressCreditBar.setVisible(true);
-        finalPaymentCreditResult.setReadOnly(true);
-        finalPaymentCreditResult.setVisible(true);
-        creditTerm.add(new H2("Check the credit card with the post and press continue..."), continueCreditButton, progressCreditBar, finalPaymentCreditResult, endCreditButton, new HtmlComponent("br"), new H3("Or cancel..."), cancelCreditButton);
-        continueCreditButton.addClickListener(i -> {
-            paymentLogic("Credit");
-        });
-        cancelCreditButton.addClickListener(i -> {
-            creditTerm.close();
-            returnToList();
-        });
-
-        debitTerm.setCloseOnOutsideClick(false);
-        endDebitButton.setVisible(false);
-        ProgressBar progressDebitBar = new ProgressBar();
-        progressDebitBar.setIndeterminate(true);
-        progressDebitBar.setVisible(true);
-        finalPaymentDebitResult.setReadOnly(true);
-        finalPaymentDebitResult.setVisible(true);
-        debitTerm.add(new H2("Check the debit card with the post and press continue..."), continueDebitButton, progressDebitBar, finalPaymentDebitResult, endDebitButton, new HtmlComponent("br"), new H3("Or cancel..."), cancelDebitButton);
-        continueDebitButton.addClickListener(i -> {
-            paymentLogic("Debit");
-        });
-        cancelDebitButton.addClickListener(i -> {
-            debitTerm.close();
-            returnToList();
-        });
-
-        mercadoPagoTerm.setCloseOnOutsideClick(false);
-        endMercadoPagoButton.setVisible(false);
-        ProgressBar progressMercadoPagoBar = new ProgressBar();
-        EmailField mailMercadoPago = new EmailField("Email");
-        mailMercadoPago.setRequiredIndicatorVisible(true);
-        progressMercadoPagoBar.setIndeterminate(true);
-        progressMercadoPagoBar.setVisible(true);
-        finalPaymentMercadoPagoResult.setReadOnly(true);
-        finalPaymentMercadoPagoResult.setVisible(true);
-        mercadoPagoTerm.add(new H2("Complete the mail text field and press continue..."), mailMercadoPago, continueMercadoPagoButton, progressMercadoPagoBar, finalPaymentMercadoPagoResult, endMercadoPagoButton, new HtmlComponent("br"), new H3("Or cancel..."), cancelMercadoPagoButton);
-        continueMercadoPagoButton.addClickListener(i -> {
-            paymentLogic("MercadoPago");
-        });
-        cancelDebitButton.addClickListener(i -> {
-            mercadoPagoTerm.close();
-            returnToList();
-        });
+        configureCashTerms();
+        configureCreditTerms();
+        configureDebitTerms();
+        configureMercadoPago();
 
         stepTwoDiv.add(new H2("Final price:"), finalPrice, paymentTermSelector);
 
@@ -256,15 +201,24 @@ public class PackagesView extends VerticalLayout {
         stepThreeDiv.add(new H1("Final package information:"), stepThreeInfo, finalOkButton);
 
         add(navigator, listDiv, stepOneDiv, stepTwoDiv, stepThreeDiv);
+        setListeners();
+        continueButtonStepOne.addClickListener(i -> stepOneFinish());
+        finalOkButton.addClickListener(i -> returnToList());
+    }
+
+    private void setListeners() {
         transmitterTypeSelector.addValueChangeListener(i -> transmitterSelectedType(i.getValue()));
         receiverTypeSelector.addValueChangeListener(i -> receiverSelectedType(i.getValue()));
         paymentTermSelector.addValueChangeListener(i -> paymentTermSelected(i.getValue()));
-        continueButtonStepOne.addClickListener(i -> stepOneFinish());
         receiverFilter.setValueChangeMode(ValueChangeMode.EAGER);
         receiverFilter.addValueChangeListener(e -> updateReceiverList());
         transmitterFilter.setValueChangeMode(ValueChangeMode.EAGER);
         transmitterFilter.addValueChangeListener(e -> updateTransmitterList());
         packagesReception.addClickListener(i -> stepOne());
+        setPaymentListeners();
+    }
+
+    private void setPaymentListeners() {
         endMercadoPagoButton.addClickListener(i -> {
             mercadoPagoTerm.close();
             stepThree();
@@ -277,8 +231,128 @@ public class PackagesView extends VerticalLayout {
             debitTerm.close();
             stepThree();
         });
-        finalOkButton.addClickListener(i -> returnToList());
     }
+
+    private void configureAutoCompleteInput() {
+        autocomplete.setPlaceholder("Type the address where it is going to go...");
+        autocomplete.setLabel("Type address");
+        autocomplete.setWidth(30f, Unit.EM);
+        autocomplete.addChangeListener(event -> {
+            packagesService.getCoordinatesFromAddress(event.getValue());
+            loadAddresses();
+        });
+        autocomplete.addAutocompleteValueAppliedListener(event -> {
+            LatLng coordinate = coordinatesByAddress.get(event.getValue());
+            packagesService.setDestination(coordinate);
+            map.setCenter(new LatLon(coordinate.lat, coordinate.lng));
+            addressMarker = new GoogleMapMarker("", new LatLon(coordinate.lat, coordinate.lng), false);
+            map.addMarker(addressMarker);
+        });
+    }
+
+    private void loadAddresses() {
+        try {
+            autoCompleteAddressInput(packagesService.getCoordinates());
+        } catch (Exception e) {
+            loadAddresses();
+        }
+    }
+
+    private void configureCashTerms() {
+        cashTerm.setCloseOnOutsideClick(false);
+        Button continueCashButton = new Button("Continue");
+        Button cancelCashButton = new Button("Cancel");
+        cashTerm.add(new H2("Press continue when the payment ends..."), continueCashButton, new HtmlComponent("br"), new H3("Or cancel..."), cancelCashButton);
+        continueCashButton.addClickListener(i -> {
+            cashTerm.close();
+            stepThree();
+        });
+        cancelCashButton.addClickListener(i -> {
+            cashTerm.close();
+            returnToList();
+        });
+    }
+
+    private void configureCreditTerms() {
+        creditTerm.setCloseOnOutsideClick(false);
+        endCreditButton.setVisible(false);
+        ProgressBar progressCreditBar = new ProgressBar();
+        progressCreditBar.setIndeterminate(true);
+        progressCreditBar.setVisible(true);
+        finalPaymentCreditResult.setReadOnly(true);
+        finalPaymentCreditResult.setVisible(true);
+        creditTerm.add(new H2("Check the credit card with the post and press continue..."), continueCreditButton, progressCreditBar, finalPaymentCreditResult, endCreditButton, new HtmlComponent("br"), new H3("Or cancel..."), cancelCreditButton);
+        continueCreditButton.addClickListener(i -> paymentLogic("Credit"));
+        cancelCreditButton.addClickListener(i -> {
+            creditTerm.close();
+            returnToList();
+        });
+    }
+
+    private void configureDebitTerms() {
+        debitTerm.setCloseOnOutsideClick(false);
+        endDebitButton.setVisible(false);
+        ProgressBar progressDebitBar = new ProgressBar();
+        progressDebitBar.setIndeterminate(true);
+        progressDebitBar.setVisible(true);
+        finalPaymentDebitResult.setReadOnly(true);
+        finalPaymentDebitResult.setVisible(true);
+        debitTerm.add(new H2("Check the debit card with the post and press continue..."), continueDebitButton, progressDebitBar, finalPaymentDebitResult, endDebitButton, new HtmlComponent("br"), new H3("Or cancel..."), cancelDebitButton);
+        continueDebitButton.addClickListener(i -> paymentLogic("Debit"));
+        cancelDebitButton.addClickListener(i -> {
+            debitTerm.close();
+            returnToList();
+        });
+    }
+
+    private void configureMercadoPago() {
+        mercadoPagoTerm.setCloseOnOutsideClick(false);
+        endMercadoPagoButton.setVisible(false);
+        ProgressBar progressMercadoPagoBar = new ProgressBar();
+        EmailField mailMercadoPago = new EmailField("Email");
+        mailMercadoPago.setRequiredIndicatorVisible(true);
+        progressMercadoPagoBar.setIndeterminate(true);
+        progressMercadoPagoBar.setVisible(true);
+        finalPaymentMercadoPagoResult.setReadOnly(true);
+        finalPaymentMercadoPagoResult.setVisible(true);
+        mercadoPagoTerm.add(new H2("Complete the mail text field and press continue..."), mailMercadoPago, continueMercadoPagoButton, progressMercadoPagoBar, finalPaymentMercadoPagoResult, endMercadoPagoButton, new HtmlComponent("br"), new H3("Or cancel..."), cancelMercadoPagoButton);
+        continueMercadoPagoButton.addClickListener(i -> paymentLogic("MercadoPago"));
+        cancelDebitButton.addClickListener(i -> {
+            mercadoPagoTerm.close();
+            returnToList();
+        });
+    }
+
+    private void loadPackagesGrid(List<Package> list) {
+        packagesGrid.setItems(list);
+        packagesGrid.addColumn(Package::getNumber).setHeader("Number");
+        packagesGrid.addColumn(Package::getState).setHeader("State");
+        packagesGrid.addColumn(Package::getStartDate).setHeader("Start Date");
+        packagesGrid.addColumn(Package::getFinishDate).setHeader("Finish Date");
+        packagesGrid.addColumn(Package::getExtraInfo).setHeader("Extra info.");
+        packagesGrid.addColumn(Package::getAddress).setHeader("Address");
+    }
+
+    private void loadTransmitterPersonList() {
+        transmitterPersonTypeList.addColumn(Person::getClientId).setHeader("Id");
+        transmitterPersonTypeList.addColumn(Person::getDNI).setHeader("DNI");
+        transmitterPersonTypeList.addColumn(Person::getName).setHeader("Name");
+        transmitterPersonTypeList.addColumn(Person::getSurname).setHeader("Surname");
+        transmitterCompanyTypeList.addColumn(Company::getClientId).setHeader("Id");
+        transmitterCompanyTypeList.addColumn(Company::getRUT).setHeader("RUT");
+        transmitterCompanyTypeList.addColumn(Company::getBusinessName).setHeader("Business Name");
+    }
+
+    public void loadReceiverPersonList() {
+        receiverPersonTypeList.addColumn(Person::getClientId).setHeader("Id");
+        receiverPersonTypeList.addColumn(Person::getDNI).setHeader("DNI");
+        receiverPersonTypeList.addColumn(Person::getName).setHeader("Name");
+        receiverPersonTypeList.addColumn(Person::getSurname).setHeader("Surname");
+        receiverCompanyTypeList.addColumn(Company::getClientId).setHeader("Id");
+        receiverCompanyTypeList.addColumn(Company::getRUT).setHeader("RUT");
+        receiverCompanyTypeList.addColumn(Company::getBusinessName).setHeader("Business Name");
+    }
+
 
     public void paymentLogic(String type) {
         packagePayment.setStrategy(type);
@@ -286,63 +360,108 @@ public class PackagesView extends VerticalLayout {
         finalPaymentDebitResult.setValue(result);
         finalPaymentCreditResult.setValue(result);
         finalPaymentMercadoPagoResult.setValue(result);
-        if (result.equals("Post: OK")) {
-            cancelMercadoPagoButton.setEnabled(false);
-            cancelDebitButton.setEnabled(false);
-            cancelCreditButton.setEnabled(false);
-            continueCreditButton.setEnabled(false);
-            continueMercadoPagoButton.setEnabled(false);
-            continueDebitButton.setEnabled(false);
-            debitTerm.setCloseOnEsc(false);
-            mercadoPagoTerm.setCloseOnEsc(false);
-            creditTerm.setCloseOnEsc(false);
-            endMercadoPagoButton.setVisible(true);
-            endDebitButton.setVisible(true);
-            endCreditButton.setVisible(true);
+        if (isResultSuccessful(result)) {
+            paymentSuccessful();
         }
     }
 
+    public boolean isResultSuccessful(String result) {
+        return result.equals("Post: OK");
+    }
+
+    public void paymentSuccessful() {
+        cancelMercadoPagoButton.setEnabled(false);
+        cancelDebitButton.setEnabled(false);
+        cancelCreditButton.setEnabled(false);
+        continueCreditButton.setEnabled(false);
+        continueMercadoPagoButton.setEnabled(false);
+        continueDebitButton.setEnabled(false);
+        debitTerm.setCloseOnEsc(false);
+        mercadoPagoTerm.setCloseOnEsc(false);
+        creditTerm.setCloseOnEsc(false);
+        endMercadoPagoButton.setVisible(true);
+        endDebitButton.setVisible(true);
+        endCreditButton.setVisible(true);
+    }
+
     public void stepThree() {
+        configureStepThreeNavigation();
+
+        Package pack = new Package();
+        loadPackage(pack);
+        packagesClient.createPackage(pack);
+        FirestoreService.getInstance().log(TAG, "Package received: " + pack);
+        ObjectMapper mapper = new ObjectMapper();
+        List<Package> list = mapper.convertValue(packagesClient.getAllPackages(), new TypeReference<List<Package>>() {
+        });
+
+        packagesGrid.setItems(list);
+
+        String filename = PDF_REPORTS_FOLDER + pack.getTrackingId() + ".pdf";
+        stepThreeInfo.add(new H2("Transmitter Id: " + pack.getTransmitterId()), new H2("Tracking Id: " + pack.getTrackingId()));
+        if (generateFile(filename, pack))
+            stepThreeInfo.add(setDownloadButton(filename));
+    }
+
+    private FileDownloadWrapper setDownloadButton(String filename) {
+        File file = new File(filename);
+        Button button = new Button("Download package specification", new Icon(VaadinIcon.DOWNLOAD));
+        FileDownloadWrapper buttonWrapper = new FileDownloadWrapper(
+                new StreamResource("Package report.pdf", () -> {
+                    try {
+                        return new ByteArrayInputStream(FileUtils.readFileToByteArray(file));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    return null;
+                }));
+
+        buttonWrapper.wrapComponent(button);
+        return buttonWrapper;
+    }
+
+    private boolean generateFile(String filename, Package pack) {
+        PDFGenerator pdfGenerator = new PDFGenerator();
+        return pdfGenerator.createPackageReport(filename, pack);
+    }
+
+    private void configureStepThreeNavigation() {
         navigator.setSelectedTab(tab4);
         tab3.setEnabled(false);
         tab4.setEnabled(true);
         stepTwoDiv.setVisible(false);
         stepThreeDiv.setVisible(true);
+    }
 
-        Package pack = new Package();
+    private void loadPackage(Package pack) {
+        pack.setExtraInfo(groupInfo.getValue());
         pack.setStartDate(new Date(System.currentTimeMillis()));
         pack.setPrice(Float.valueOf(finalPrice.getValue()));
-        pack.setLng(1);
-        pack.setLng(1);
+        pack.setLat((float) addressMarker.getPosition().getLat());
+        pack.setLng((float) addressMarker.getPosition().getLon());
+        pack.setAddress(autocomplete.getValue());
         pack.setState(PackageState.IN_LOCAL);
-        Integer paymentId = 3;
-        switch (paymentTermSelector.getValue()) {
-            case "Credit":
-                paymentId = 2;
-                break;
-            case "Debit":
-                paymentId = 1;
-                break;
-            case "MercadoPago":
-                paymentId = 4;
-                break;
-            case "Cash":
-                paymentId = 3;
-                break;
-        }
-        pack.setPaymentTermId(paymentId);
+        pack.setPaymentTermId(getPaymentID());
         pack.setTransmitterId(Integer.parseInt(VaadinService.getCurrentRequest().getWrappedSession()
                 .getAttribute("transmitter").toString()));
         pack.setReceiverId(Integer.parseInt(VaadinService.getCurrentRequest().getWrappedSession()
                 .getAttribute("receiver").toString()));
         Tracking tracking = packagesClient.createTracking();
         pack.setTrackingId(tracking.getId());
-        packagesClient.createPackage(pack);
+        pack.setWeight(weight.getValue());
+    }
 
-        ObjectMapper mapper = new ObjectMapper();
-        List<Package> list = mapper.convertValue(packagesClient.getAllPackages(), new TypeReference<List<Package>>(){});
-        packagesGrid.setItems(list);
-        stepThreeInfo.add(new H2("Transmitter Id: " + pack.getTransmitterId()), new H2("Tracking Id: " + pack.getTrackingId()), new H2("Package number: " + pack.getNumber()));
+    private int getPaymentID() {
+        switch (paymentTermSelector.getValue()) {
+            case "Credit":
+                return 2;
+            case "Debit":
+                return 1;
+            case "MercadoPago":
+                return 4;
+            default:
+                return 3;
+        }
     }
 
     public void returnToList() {
@@ -352,7 +471,8 @@ public class PackagesView extends VerticalLayout {
         tab4.setEnabled(false);
         tab1.setEnabled(true);
         weight.clear();
-        address.clear();
+        autocomplete.clear();
+        groupInfo.clear();
         receiverCompanyTypeList.setVisible(false);
         receiverPersonTypeList.setVisible(false);
         transmitterCompanyTypeList.setVisible(false);
@@ -389,11 +509,13 @@ public class PackagesView extends VerticalLayout {
     public void updatePackageList() {
         if (packagesFilter.getValue().equals("")) {
             ObjectMapper mapper = new ObjectMapper();
-            List<Package> list = mapper.convertValue(packagesClient.getAllPackages(), new TypeReference<List<Package>>(){});
+            List<Package> list = mapper.convertValue(packagesClient.getAllPackages(), new TypeReference<List<Package>>() {
+            });
             packagesGrid.setItems(list);
         } else {
             ObjectMapper mapper = new ObjectMapper();
-            List<Package> list = mapper.convertValue(packagesClient.getAllPackagesLike(packagesFilter.getValue()), new TypeReference<List<Package>>(){});
+            List<Package> list = mapper.convertValue(packagesClient.getAllPackagesLike(packagesFilter.getValue()), new TypeReference<List<Package>>() {
+            });
             packagesGrid.setItems(list);
         }
     }
@@ -403,21 +525,25 @@ public class PackagesView extends VerticalLayout {
         if (type.equals("Person")) {
             if (receiverFilter.getValue().equals("")) {
                 ObjectMapper mapper = new ObjectMapper();
-                List<Person> list = mapper.convertValue(clientClient.listAllPersons(), new TypeReference<List<Person>>(){});
+                List<Person> list = mapper.convertValue(clientClient.listAllPersons(), new TypeReference<List<Person>>() {
+                });
                 receiverPersonTypeList.setItems(list);
             } else {
                 ObjectMapper mapper = new ObjectMapper();
-                List<Person> list = mapper.convertValue(clientClient.listAllPersonsLike(receiverFilter.getValue()), new TypeReference<List<Person>>(){});
+                List<Person> list = mapper.convertValue(clientClient.listAllPersonsLike(receiverFilter.getValue()), new TypeReference<List<Person>>() {
+                });
                 receiverPersonTypeList.setItems(list);
             }
         } else {
             if (receiverFilter.getValue().equals("")) {
                 ObjectMapper mapper = new ObjectMapper();
-                List<Company> list = mapper.convertValue(clientClient.listAllCompanies(), new TypeReference<List<Company>>(){});
+                List<Company> list = mapper.convertValue(clientClient.listAllCompanies(), new TypeReference<List<Company>>() {
+                });
                 receiverCompanyTypeList.setItems(list);
             } else {
                 ObjectMapper mapper = new ObjectMapper();
-                List<Company> list = mapper.convertValue(clientClient.listAllCompaniesLike(receiverFilter.getValue()), new TypeReference<List<Company>>() {});
+                List<Company> list = mapper.convertValue(clientClient.listAllCompaniesLike(receiverFilter.getValue()), new TypeReference<List<Company>>() {
+                });
                 receiverCompanyTypeList.setItems(list);
             }
         }
@@ -428,21 +554,25 @@ public class PackagesView extends VerticalLayout {
         if (type.equals("Person")) {
             if (transmitterFilter.getValue().equals("")) {
                 ObjectMapper mapper = new ObjectMapper();
-                List<Person> list = mapper.convertValue(clientClient.listAllPersons(), new TypeReference<List<Person>>(){});
+                List<Person> list = mapper.convertValue(clientClient.listAllPersons(), new TypeReference<List<Person>>() {
+                });
                 transmitterPersonTypeList.setItems(list);
             } else {
                 ObjectMapper mapper = new ObjectMapper();
-                List<Person> list = mapper.convertValue(clientClient.listAllPersonsLike(transmitterFilter.getValue()), new TypeReference<List<Person>>(){});
+                List<Person> list = mapper.convertValue(clientClient.listAllPersonsLike(transmitterFilter.getValue()), new TypeReference<List<Person>>() {
+                });
                 transmitterPersonTypeList.setItems(list);
             }
         } else {
             if (transmitterFilter.getValue().equals("")) {
                 ObjectMapper mapper = new ObjectMapper();
-                List<Company> list = mapper.convertValue(clientClient.listAllCompanies(), new TypeReference<List<Company>>(){});
+                List<Company> list = mapper.convertValue(clientClient.listAllCompanies(), new TypeReference<List<Company>>() {
+                });
                 transmitterCompanyTypeList.setItems(list);
             } else {
                 ObjectMapper mapper = new ObjectMapper();
-                List<Company> list = mapper.convertValue(clientClient.listAllCompaniesLike(transmitterFilter.getValue()), new TypeReference<List<Company>>() {});
+                List<Company> list = mapper.convertValue(clientClient.listAllCompaniesLike(transmitterFilter.getValue()), new TypeReference<List<Company>>() {
+                });
                 transmitterCompanyTypeList.setItems(list);
             }
         }
@@ -475,12 +605,19 @@ public class PackagesView extends VerticalLayout {
         Integer clientId = Integer.parseInt(VaadinService.getCurrentRequest().getWrappedSession()
                 .getAttribute("transmitter").toString());
         Client client = clientClient.getClient(clientId);
-        packagesService.KG = Float.parseFloat(weight.getValue().toString());
-        packagesService.KM = 10f;
+        packagesService.setKG(Float.parseFloat(weight.getValue().toString()));
         packagesService.tripTax = configurationClient.getTripTax();
         Integer groupId = client.getClientGroupId();
         packagesService.setStrategy(groupId);
-        finalPrice.setValue(packagesService.calculatePrice());
+        setValue();
+    }
+
+    private void setValue() {
+        try {
+            finalPrice.setValue(packagesService.calculatePrice());
+        } catch (Exception e) {
+            setValue();
+        }
     }
 
     public void stepOneFinish() {
@@ -495,7 +632,7 @@ public class PackagesView extends VerticalLayout {
                     .getAttribute("receiver").toString().equals("")) {
                 isOk = false;
             }
-            if (address.getValue().equals("")) {
+            if (autocomplete.getValue().equals("")) {
                 isOk = false;
             }
             if (weight.getValue().equals("")) {
@@ -515,7 +652,7 @@ public class PackagesView extends VerticalLayout {
                 }
             } else {
                 VaadinService.getCurrentRequest().getWrappedSession()
-                        .setAttribute("address", address.getValue());
+                        .setAttribute("address", autocomplete.getValue());
                 VaadinService.getCurrentRequest().getWrappedSession()
                         .setAttribute("weight", weight.getValue());
                 stepTwo();
@@ -541,19 +678,19 @@ public class PackagesView extends VerticalLayout {
             transmitterPersonTypeList.setVisible(true);
             transmitterCompanyTypeList.setVisible(false);
             ObjectMapper mapper = new ObjectMapper();
-            List<Person> list = mapper.convertValue(clientClient.listAllPersons(), new TypeReference<List<Person>>(){});
-            transmitterPersonTypeList.setItems(list);
-            transmitterPersonTypeList.asSingleSelect().addValueChangeListener(event -> {
-            VaadinService.getCurrentRequest().getWrappedSession()
-                    .setAttribute("transmitter", event.getValue().getClientId());
+            List<Person> list = mapper.convertValue(clientClient.listAllPersons(), new TypeReference<List<Person>>() {
             });
+            transmitterPersonTypeList.setItems(list);
+            transmitterPersonTypeList.asSingleSelect().addValueChangeListener(event -> VaadinService.getCurrentRequest().getWrappedSession()
+                    .setAttribute("transmitter", event.getValue().getClientId()));
         } else {
             transmitterFilter.setVisible(true);
             transmitterFilter.setPlaceholder("Filter by RUT");
             transmitterPersonTypeList.setVisible(false);
             transmitterCompanyTypeList.setVisible(true);
             ObjectMapper mapper = new ObjectMapper();
-            List<Company> list = mapper.convertValue(clientClient.listAllCompanies(), new TypeReference<List<Company>>(){});
+            List<Company> list = mapper.convertValue(clientClient.listAllCompanies(), new TypeReference<List<Company>>() {
+            });
             transmitterCompanyTypeList.setItems(list);
             transmitterCompanyTypeList.asSingleSelect().addValueChangeListener(event -> {
                 VaadinService.getCurrentRequest().getWrappedSession()
@@ -569,7 +706,8 @@ public class PackagesView extends VerticalLayout {
             receiverPersonTypeList.setVisible(true);
             receiverCompanyTypeList.setVisible(false);
             ObjectMapper mapper = new ObjectMapper();
-            List<Person> list = mapper.convertValue(clientClient.listAllPersons(), new TypeReference<List<Person>>(){});
+            List<Person> list = mapper.convertValue(clientClient.listAllPersons(), new TypeReference<List<Person>>() {
+            });
             receiverPersonTypeList.setItems(list);
             receiverPersonTypeList.asSingleSelect().addValueChangeListener(event -> {
                 VaadinService.getCurrentRequest().getWrappedSession()
@@ -581,7 +719,8 @@ public class PackagesView extends VerticalLayout {
             receiverPersonTypeList.setVisible(false);
             receiverCompanyTypeList.setVisible(true);
             ObjectMapper mapper = new ObjectMapper();
-            List<Company> list = mapper.convertValue(clientClient.listAllCompanies(), new TypeReference<List<Company>>(){});
+            List<Company> list = mapper.convertValue(clientClient.listAllCompanies(), new TypeReference<List<Company>>() {
+            });
             receiverCompanyTypeList.setItems(list);
             receiverCompanyTypeList.asSingleSelect().addValueChangeListener(event -> {
                 VaadinService.getCurrentRequest().getWrappedSession()
@@ -594,10 +733,10 @@ public class PackagesView extends VerticalLayout {
         String apiKey = System.getProperty("google.maps.api");
         map = new GoogleMap(apiKey, null, null);
         map.setMapType(GoogleMap.MapType.ROADMAP);
-        map.goToCurrentLocation();
+        map.setCenter(new LatLon(CURRENT_LAT, CURRENT_LNG));
         map.setSizeFull();
-        map.setWidthFull();
-        map.setHeight(400, Unit.PIXELS);
+        map.setWidth(850, Unit.PIXELS);
+        map.setHeight(350, Unit.PIXELS);
         map.setZoom(11);
         loadZones();
     }
@@ -628,37 +767,25 @@ public class PackagesView extends VerticalLayout {
         dialog.open();
     }
 
-    private void removeZone(Zone zone) {
-        Dialog confirm = new Dialog();
-        String confirmationQuestion = "Are you sure you want to delete zone " + zone.getName() + "?";
-        confirm.add(new H4(confirmationQuestion),
-                new Text("This action cannot be undone"));
-        confirm.setCloseOnEsc(false);
-        confirm.setCloseOnOutsideClick(false);
-        Button confirmButton = new Button("Delete anyway", event -> {
-            clientZones.removeZone(zone.getUuid());
-            confirm.close();
-            String text = "Zone " + zone.getName() + " has been successfully deleted";
-            Notification.show(text, 3000, Notification.Position.MIDDLE);
-        });
-        Button cancelButton = new Button("Cancel", event -> confirm.close());
-        confirm.add(new Div(confirmButton, cancelButton));
-        confirm.open();
-    }
-
     public void setOpened(boolean opened) {
         setVisible(opened);
 
         UI ui = UI.getCurrent();
 
-        if(opened && this.getElement().getNode().getParent() == null && ui != null){
+        if (opened && this.getElement().getNode().getParent() == null && ui != null) {
             ui.beforeClientResponse(ui, (context) -> {
                 // no need to encapsulate inside another component
                 ui.add(this);
             });
-        } else if (!opened){
+        } else if (!opened) {
             getElement().removeFromParent();
         }
     }
 
+    public void autoCompleteAddressInput(HashMap<String, LatLng> coordinates) throws NullPointerException {
+        coordinatesByAddress = coordinates;
+        getUI().ifPresent(ui -> ui.access(() -> {
+            autocomplete.setOptions(new ArrayList<>(coordinates.keySet()));
+        }));
+    }
 }

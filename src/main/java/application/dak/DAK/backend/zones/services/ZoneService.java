@@ -7,7 +7,7 @@ import application.dak.DAK.backend.zones.components.ZoneMessageSender;
 import application.dak.DAK.backend.zones.mappers.CoordinateMapper;
 import application.dak.DAK.backend.zones.mappers.ZoneMapper;
 import com.flowingcode.vaadin.addons.googlemaps.LatLon;
-import firebase.FirebaseService;
+import application.dak.DAK.firebase.FirestoreService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -42,7 +42,7 @@ public class ZoneService {
 
     public void removeZone(String uuid) {
         zoneMapper.remove(uuid);
-        FirebaseService.getInstance().log(TAG, "zone " + uuid + " removed");
+        FirestoreService.getInstance().log(TAG, "zone " + uuid + " removed");
     }
 
     public List<Zone> getZones() {
@@ -72,7 +72,7 @@ public class ZoneService {
     public void addZoneSync(Zone zone) {
         zoneMapper.add(zone);
         addCoordinatesSync(zone.getCoordinates(), zone.getUuid());
-        FirebaseService.getInstance().log(TAG, "new zone added : " + zone);
+        FirestoreService.getInstance().log(TAG, "new zone added : " + zone);
     }
 
     public void addCoordinatesSync(List<LatLon> coordinates, String zoneUUID) {

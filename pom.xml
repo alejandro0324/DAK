@@ -195,6 +195,29 @@
             <artifactId>google-maps-services</artifactId>
             <version>1.0.0</version>
         </dependency>
+        <!--
+                This dependency allows working with autocomplete inputs
+        -->
+        <dependency>
+            <groupId>com.vaadin.componentfactory</groupId>
+            <artifactId>autocomplete</artifactId>
+            <version>2.3.2</version>
+        </dependency>
+        <!--
+                This dependency allows to create a downloadButton
+        -->
+        <dependency>
+            <groupId>org.vaadin.olli</groupId>
+            <artifactId>file-download-wrapper</artifactId>
+            <version>3.0.1</version>
+        </dependency>
+
+        <!-- This dependency allows to create PDF files -->
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>itextpdf</artifactId>
+            <version>5.5.13.2</version>
+        </dependency>
     </dependencies>
     <dependencyManagement>
         <dependencies>
