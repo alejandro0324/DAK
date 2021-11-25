@@ -29,7 +29,7 @@ public interface PackagesMapper {
     public Integer createTracking(@Param("tracking") final Tracking tracking);
 
     @Insert("INSERT INTO T_DetTracking(trackingId, date, lat, lng) values (#{id}, #{date}, 1, 1)")
-    public void createTrackingDet(@Param("id") final Integer id, @Param("date") final Date date);
+    public void createTrackingDet(@Param("id") final String id, @Param("date") final Date date);
 
     @Insert("INSERT INTO T_Package(price, startDate, state, lat, lng, trackingId, paymentTermId, transmitterId, receiverId) values (#{pack.Price}, #{pack.StartDate}, #{pack.State}, #{pack.lat},  #{pack.lng}, #{pack.trackingId}, #{pack.paymentTermId},  #{pack.transmitterId}, #{pack.receiverId})")
     public void createPackage(@Param("pack") final Package pack);
