@@ -18,4 +18,5 @@ public class Tracking {
     private String carID;
     private Date dateOfTracking;
     private String stateOfTracking;
+    public String information;
 }
