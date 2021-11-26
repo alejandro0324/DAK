@@ -10,7 +10,6 @@ import com.itextpdf.text.pdf.PdfWriter;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Date;
-import java.util.UUID;
 
 public class PDFGenerator {
 

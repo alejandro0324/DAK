@@ -609,14 +609,20 @@ public class PackagesView extends VerticalLayout {
         packagesService.tripTax = configurationClient.getTripTax();
         Integer groupId = client.getClientGroupId();
         packagesService.setStrategy(groupId);
-        setValue();
+        setValue(0);
     }
 
-    private void setValue() {
+    private void setValue(int counter) {
         try {
             finalPrice.setValue(packagesService.calculatePrice());
         } catch (Exception e) {
-            setValue();
+            if (counter <= 10) {
+                setValue(counter + 1);
+            } else {
+                Notification.show("The address must be accessible within the same continent");
+                log.error(e.getMessage());
+                new PackagesView();
+            }
         }
     }
 
