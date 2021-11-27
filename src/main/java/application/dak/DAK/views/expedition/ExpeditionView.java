@@ -3,37 +3,39 @@ package application.dak.DAK.views.expedition;
 import application.dak.DAK.backend.common.models.Package;
 import application.dak.DAK.backend.expeditions.components.ExpeditionClient;
 import application.dak.DAK.backend.packages.services.PackagesClient;
+import application.dak.DAK.firebase.FirestoreService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.flowingcode.vaadin.addons.googlemaps.GoogleMap;
-import com.flowingcode.vaadin.addons.googlemaps.GoogleMapMarker;
-import com.flowingcode.vaadin.addons.googlemaps.LatLon;
+import com.flowingcode.vaadin.addons.googlemaps.*;
+import com.google.maps.model.LatLng;
 import com.vaadin.flow.component.AbstractField;
 import com.vaadin.flow.component.Unit;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H4;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.PageTitle;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import static application.dak.DAK.backend.utils.Constants.*;
 
 @PageTitle("Expedition")
 public class ExpeditionView extends VerticalLayout {
 
-    Grid<Package> expeditionGrid = new Grid<>();
-    TextField expeditionFilter = new TextField();
+    private static final String TAG = "ExpeditionView";
     private final PackagesClient packagesClient;
     private final ExpeditionClient expeditionClient;
+
+    Grid<Package> expeditionGrid = new Grid<>();
+    TextField expeditionFilter = new TextField();
     private static Set<Package> selectedPackages;
     VerticalLayout expeditionGridDiv = new VerticalLayout();
     VerticalLayout routeCalculationDiv = new VerticalLayout();
@@ -52,7 +54,60 @@ public class ExpeditionView extends VerticalLayout {
         configureGoogleMaps();
         H2 header = new H2("Calculate the best route for the packages selected");
         H4 packagesSelected = new H4("Packages selected: " + selectedPackages.size());
-        routeCalculationDiv.add(header, packagesSelected, map);
+        HorizontalLayout actions = new HorizontalLayout();
+        Button backToExpeditions = new Button("Back to the expeditions grid", new Icon(VaadinIcon.ARROW_CIRCLE_LEFT_O));
+        backToExpeditions.addClickListener(event -> goBack());
+        Button calculateRoutes = new Button("Calculate routes", new Icon(VaadinIcon.ROAD));
+        calculateRoutes.addClickListener(event -> {
+            getDirections();
+            FirestoreService.getInstance().log(TAG, "Route successfully displayed");
+        });
+        TextField carID = new TextField("Car ID");
+        carID.setPlaceholder("Car ID");
+        carID.setRequired(true);
+        carID.setRequiredIndicatorVisible(true);
+        Button shipPackages = new Button("Ship packages", new Icon(VaadinIcon.CAR));
+        shipPackages.addClickListener(event -> updatePackages(carID.getValue()));
+        actions.add(backToExpeditions, calculateRoutes, carID, shipPackages);
+        actions.setJustifyContentMode(JustifyContentMode.BETWEEN);
+        routeCalculationDiv.add(header, packagesSelected, actions, map);
+    }
+
+    private void goBack() {
+        selectedPackages = new HashSet<>();
+        toggleDivs();
+        configureExpeditionsDiv();
+        expeditionGrid.setEnabled(true);
+    }
+
+    private void updatePackages(String carID) {
+        selectedPackages.forEach(i -> i.setCarID(carID));
+        expeditionClient.updatePackages(new ArrayList<>(selectedPackages));
+        Notification.show("Packages have been sent to be delivered", 3000, Notification.Position.MIDDLE);
+        goBack();
+    }
+
+    private void getDirections() {
+        List<LatLng> decodedPath = expeditionClient.getDirections().getDecodedPath();
+        if (decodedPath != null) {
+            for (int i = 0; i < decodedPath.size() - 1; i++) {
+                LatLng currentLatLng = decodedPath.get(i);
+                if (i + 1 < decodedPath.size()) {
+                    map.addPolygon(createPolyline(currentLatLng, decodedPath.get(i + 1)));
+                }
+            }
+        }else{
+            Notification.show("Directions cannot be fetched due to an unknown problem", 3000, Notification.Position.MIDDLE);
+        }
+    }
+
+    public GoogleMapPolygon createPolyline(LatLng from, LatLng to) {
+        GoogleMapPolygon polyline = new GoogleMapPolygon(Arrays.asList(
+                new GoogleMapPoint(new LatLon(from.lat, from.lng)),
+                new GoogleMapPoint(new LatLon(to.lat, to.lng))));
+        polyline.setClosed(false);
+        polyline.setStrokeColor(APP_COLOUR);
+        return polyline;
     }
 
     private void configureGoogleMaps() {
@@ -80,7 +135,7 @@ public class ExpeditionView extends VerticalLayout {
     }
 
     private void addMarkers() {
-        selectedPackages.forEach(i-> {
+        selectedPackages.forEach(i -> {
             GoogleMapMarker marker = new GoogleMapMarker("", new LatLon(i.getLat(), i.getLng()), false);
             marker.addInfoWindow("<h4> PACKAGE INFORMATION </h4> " +
                     "<h5>Date:" + i.getStartDate() + "</h5>" +
@@ -100,19 +155,21 @@ public class ExpeditionView extends VerticalLayout {
         Button issueButton = new Button("Calculate routes");
         issueButton.addClickListener(e -> issuePackages());
         setListeners();
-        expeditionGridDiv.add(new H2("List of all ready packages, check a maximum of " + MAX_WAYPOINTS + " packages to calculate the route"), expeditionFilter, expeditionGrid, issueButton);
+        expeditionGridDiv.add(new H2("List of all ready packages, check a maximum of " + MAX_WAYPOINTS + " packages to calculate the route"), issueButton, expeditionFilter, expeditionGrid);
     }
 
     private void setListeners() {
         expeditionFilter.setValueChangeMode(ValueChangeMode.EAGER);
         expeditionFilter.addValueChangeListener(e -> updateExpeditionList());
-        expeditionGrid.asMultiSelect().addValueChangeListener(event -> valueChanged(event));
+        expeditionGrid.asMultiSelect().addValueChangeListener(this::valueChanged);
     }
 
     private void valueChanged(AbstractField.ComponentValueChangeEvent<Grid<Package>, Set<Package>> event) {
-        if (selectedPackages.size()  <= MAX_WAYPOINTS) {
+        if (selectedPackages.size() < MAX_WAYPOINTS) {
             selectedPackages = event.getValue();
-        } else {
+        }
+
+        if (selectedPackages.size() >= MAX_WAYPOINTS) {
             notifyLimitReached();
         }
     }
@@ -147,14 +204,14 @@ public class ExpeditionView extends VerticalLayout {
         }
     }
 
-    private void changeDivs(){
+    private void toggleDivs() {
         expeditionGridDiv.setVisible(!expeditionGrid.isVisible());
         routeCalculationDiv.setVisible(!routeCalculationDiv.isVisible());
     }
 
     public void issuePackages() {
-        configureRouteCalculationDiv();
-        changeDivs();
         expeditionClient.calculateDirections(new ArrayList<>(selectedPackages));
+        configureRouteCalculationDiv();
+        toggleDivs();
     }
 }

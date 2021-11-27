@@ -9,5 +9,5 @@ public class Constants {
     public static final Double TAX = 300.0;
     public static final String PDF_REPORTS_FOLDER = "src/main/java/application/dak/DAK/packagesReports/";
     public static final int MAX_WAYPOINTS = 4;
-    public static final int MAX_WAYPOINTS_CHEAPER = 9;
+    public static final String CURRENT_COUNTRY = "Uruguay";
 }

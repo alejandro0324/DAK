@@ -1,17 +1,23 @@
 package application.dak.DAK.backend.expeditions.services;
 
+import application.dak.DAK.backend.common.models.DirectionsQueryResult;
 import application.dak.DAK.backend.common.models.Package;
+import application.dak.DAK.backend.common.models.PackageState;
+import application.dak.DAK.backend.common.models.Tracking;
+import application.dak.DAK.backend.expeditions.components.ExpeditionSender;
+import application.dak.DAK.backend.expeditions.mappers.TrackingMapper;
 import com.google.maps.DirectionsApiRequest;
 import com.google.maps.GeoApiContext;
 import com.google.maps.PendingResult;
+import com.google.maps.internal.PolylineEncoding;
 import com.google.maps.model.DirectionsResult;
+import com.google.maps.model.DirectionsRoute;
 import com.google.maps.model.LatLng;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import static application.dak.DAK.backend.utils.Constants.CURRENT_LAT;
@@ -22,9 +28,18 @@ import static application.dak.DAK.backend.utils.Constants.CURRENT_LNG;
 public class ExpeditionService {
 
     private final GeoApiContext geoApiContext;
+    private DirectionsQueryResult directionsResult;
+    private final ExpeditionSender expeditionSender;
+    private final TrackingMapper trackingMapper;
+
+    public DirectionsQueryResult getDirectionsResult() {
+        return directionsResult;
+    }
 
     @Autowired
-    public ExpeditionService() {
+    public ExpeditionService(ExpeditionSender sender, TrackingMapper mapper) {
+        this.expeditionSender = sender;
+        this.trackingMapper = mapper;
         this.geoApiContext = new GeoApiContext.Builder()
                 .apiKey(System.getProperty("google.maps.api"))
                 .build();
@@ -33,10 +48,10 @@ public class ExpeditionService {
     public void calculateDirections(List<Package> packages) {
         DirectionsApiRequest directionsRequest = new DirectionsApiRequest(geoApiContext);
         configureRequest(directionsRequest, packages);
-        directionsRequest.setCallback(new PendingResult.Callback<DirectionsResult>() {
+        directionsRequest.setCallback(new PendingResult.Callback<>() {
             @Override
             public void onResult(DirectionsResult result) {
-                directionsRequestSuccessfulResult(result);
+                directionsRequestSuccessfulResult(result.routes);
             }
 
             @Override
@@ -46,11 +61,11 @@ public class ExpeditionService {
         });
     }
 
-    private void directionsRequestSuccessfulResult(DirectionsResult result) {
-        log.info("calculateDirections: routes: = " + result.routes[0].toString());
-        log.info("duration = " + result.routes[0].legs[0].duration);
-        log.info("distance = " + result.routes[0].legs[0].distance);
-        log.info("result.geocodedWaypoints = " + Arrays.toString(result.geocodedWaypoints));
+    private void directionsRequestSuccessfulResult(DirectionsRoute[] routes) {
+        for (DirectionsRoute route : routes) {
+            List<LatLng> decodedPath = PolylineEncoding.decode(route.overviewPolyline.getEncodedPath());
+            directionsResult = new DirectionsQueryResult(decodedPath);
+        }
     }
 
     private void configureRequest(DirectionsApiRequest directionsRequest, List<Package> packages) {
@@ -63,6 +78,19 @@ public class ExpeditionService {
         directionsRequest.waypoints(coordinates.toArray(new LatLng[0]));
         directionsRequest.optimizeWaypoints(true);
         directionsRequest.destination(destination);
+    }
+
+    public void updatePackagesAsync(List<Package> packages) {
+        packages.forEach(expeditionSender::notifyPackagesUpdate);
+    }
+
+    public void updatePackageSync(Package pack) {
+        trackingMapper.updatePackage(PackageState.IN_TRAVEL.toString(), pack.getNumber());
+        Tracking tracking = new Tracking();
+        tracking.setId(pack.getTrackingId());
+        tracking.setStateOfTracking(PackageState.IN_TRAVEL.toString());
+        tracking.setCarID(pack.getCarID());
+        trackingMapper.updateTracking(tracking);
     }
 }
 

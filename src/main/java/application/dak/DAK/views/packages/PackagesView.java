@@ -619,9 +619,9 @@ public class PackagesView extends VerticalLayout {
             if (counter <= 10) {
                 setValue(counter + 1);
             } else {
-                Notification.show("The address must be accessible within the same continent");
+                Notification.show("The address must be accessible within the same continent", 3000, Notification.Position.MIDDLE);
                 log.error(e.getMessage());
-                new PackagesView();
+                stepOne();
             }
         }
     }
@@ -630,17 +630,21 @@ public class PackagesView extends VerticalLayout {
         boolean isOk = true;
         boolean same = false;
         try {
-            if (VaadinService.getCurrentRequest().getWrappedSession()
-                    .getAttribute("transmitter").toString().equals("")) {
+            if (isTransmitterEmpty()) {
                 isOk = false;
             }
-            if (VaadinService.getCurrentRequest().getWrappedSession()
-                    .getAttribute("receiver").toString().equals("")) {
+            if (isReceiverEmpty()) {
                 isOk = false;
             }
             if (autocomplete.getValue().equals("")) {
                 isOk = false;
             }
+
+            if(isDirectionValid()){
+                Notification.show("The direction must bust belong to " + CURRENT_COUNTRY, 3000, Notification.Position.MIDDLE);
+                isOk = false;
+            }
+
             if (weight.getValue().equals("")) {
                 isOk = false;
             }
@@ -652,9 +656,9 @@ public class PackagesView extends VerticalLayout {
             }
             if (!isOk) {
                 if (same) {
-                    Notification.show("ERROR: The transmitter and the receiver are the same client");
+                    Notification.show("ERROR: The transmitter and the receiver are the same client", 3000, Notification.Position.MIDDLE);
                 } else {
-                    Notification.show("ERROR: Please complete the form");
+                    Notification.show("ERROR: Please complete the form", 3000, Notification.Position.MIDDLE);
                 }
             } else {
                 VaadinService.getCurrentRequest().getWrappedSession()
@@ -666,6 +670,20 @@ public class PackagesView extends VerticalLayout {
         } catch (Exception ex) {
             Notification.show("Please complete the form");
         }
+    }
+
+    private boolean isDirectionValid() {
+        return autocomplete.getValue().contains(CURRENT_COUNTRY);
+    }
+
+    private boolean isReceiverEmpty() {
+        return VaadinService.getCurrentRequest().getWrappedSession()
+                .getAttribute("receiver").toString().equals("");
+    }
+
+    private boolean isTransmitterEmpty() {
+        return VaadinService.getCurrentRequest().getWrappedSession()
+                .getAttribute("transmitter").toString().equals("");
     }
 
     public void backToList() {

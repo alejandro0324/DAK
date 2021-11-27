@@ -14,6 +14,7 @@ import org.springframework.jms.support.converter.MessageType;
 public class ActiveMQConfig {
     public static final String ZONES_QUEUE = "zones_queue";
     public static final String COORDINATES_QUEUE = "coordinates_queue";
+    public static final String EXPEDITIONS_QUEUE = "expeditions_queue";
 
     @Bean
     public JmsListenerContainerFactory<?> queueListenerFactory() {
