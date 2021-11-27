@@ -9,7 +9,6 @@ import com.google.maps.model.*;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
-import java.util.List;
 
 import static application.dak.DAK.backend.utils.Constants.*;
 import static com.google.maps.FindPlaceFromTextRequest.InputType.TEXT_QUERY;
@@ -69,12 +68,12 @@ public class PackagesService {
                 strategyPrice = new StrategyPrice2(KG, tripTax);
                 break;
             case 3:
-                calculateKilometres();
+                strategyPrice = new StrategyPrice3(KG, KM, tripTax);
                 break;
         }
     }
 
-    private void calculateKilometres() {
+    /*private void calculateKilometres() {
         DistanceMatrixApiRequest request = new DistanceMatrixApiRequest(geoApiContext);
         request.origins(new LatLng(CURRENT_LAT, CURRENT_LNG));
         request.units(Unit.METRIC);
@@ -84,12 +83,13 @@ public class PackagesService {
                 KM = (float) (distanceMatrix.rows[0].elements[0].distance.inMeters / 1000);
                 strategyPrice = new StrategyPrice3(KG, KM, tripTax);
             }
+
             @Override
             public void onFailure(Throwable throwable) {
                 log.error("An error occurred {}", throwable.getMessage());
             }
         });
-    }
+    }*/
 
     public void getCoordinatesFromAddress(String address) {
         FindPlaceFromTextRequest request = PlacesApi.findPlaceFromText(geoApiContext, address, TEXT_QUERY);

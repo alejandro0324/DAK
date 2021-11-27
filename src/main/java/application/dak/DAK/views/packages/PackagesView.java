@@ -14,6 +14,10 @@ import application.dak.DAK.iText.PDFGenerator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flowingcode.vaadin.addons.googlemaps.*;
+import com.google.maps.DistanceMatrixApiRequest;
+import com.google.maps.GeoApiContext;
+import com.google.maps.PendingResult;
+import com.google.maps.model.DistanceMatrix;
 import com.google.maps.model.LatLng;
 import com.vaadin.componentfactory.Autocomplete;
 import com.vaadin.flow.component.HtmlComponent;
@@ -47,10 +51,7 @@ import org.vaadin.olli.FileDownloadWrapper;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 import static application.dak.DAK.backend.utils.Constants.*;
 
@@ -64,9 +65,11 @@ public class PackagesView extends VerticalLayout {
     private final PackagePayment packagePayment = new PackagePayment();
     private final ClientClient clientClient;
     private final ZonesClient clientZones;
+    private final GeoApiContext geoApiContext;
     private GoogleMapMarker addressMarker;
     private static HashMap<String, LatLng> coordinatesByAddress = new HashMap<>();
     private GoogleMap map;
+    private boolean arePriceProblems = false;
     PackagesClient packagesClient = new PackagesClient();
     Grid<Package> packagesGrid = new Grid();
     Button packagesReception = new Button("New reception");
@@ -87,6 +90,7 @@ public class PackagesView extends VerticalLayout {
     Grid<Person> receiverPersonTypeList = new Grid<>();
     Grid<Company> receiverCompanyTypeList = new Grid<>();
     static Autocomplete autocomplete = new Autocomplete(5);
+    Button continueButtonStepOne = new Button("Continue");
     Button backToList = new Button("Go back");
     NumberField weight = new NumberField("Weight");
     TextField finalPrice = new TextField();
@@ -115,8 +119,12 @@ public class PackagesView extends VerticalLayout {
     H2 clientId = new H2();
     H2 packageId = new H2();
     TextField groupInfo = new TextField("Group info");
+    static Float KM;
 
     public PackagesView() {
+        this.geoApiContext = new GeoApiContext.Builder()
+                .apiKey(System.getProperty("google.maps.api"))
+                .build();
         configurationClient = new ConfigurationClient();
         clientZones = new ZonesClient();
         clientClient = new ClientClient();
@@ -168,7 +176,6 @@ public class PackagesView extends VerticalLayout {
         configureGoogleMaps();
         configureAutoCompleteInput();
         weight.setPlaceholder("KG");
-        Button continueButtonStepOne = new Button("Continue");
         HorizontalLayout horizontalLayout = new HorizontalLayout();
         VerticalLayout verticalLayout = new VerticalLayout();
         verticalLayout.add(autocomplete, weight, groupInfo);
@@ -242,6 +249,7 @@ public class PackagesView extends VerticalLayout {
             loadAddresses();
         });
         autocomplete.addAutocompleteValueAppliedListener(event -> {
+            checkDistance(event.getValue());
             LatLng coordinate = coordinatesByAddress.get(event.getValue());
             packagesService.setDestination(coordinate);
             map.setCenter(new LatLon(coordinate.lat, coordinate.lng));
@@ -473,6 +481,8 @@ public class PackagesView extends VerticalLayout {
         tab1.setEnabled(true);
         weight.clear();
         autocomplete.clear();
+        autocomplete.setValue("");
+        map.removeMarker(addressMarker);
         groupInfo.clear();
         receiverCompanyTypeList.setVisible(false);
         receiverPersonTypeList.setVisible(false);
@@ -588,9 +598,14 @@ public class PackagesView extends VerticalLayout {
         listDiv.setVisible(false);
         stepOneDiv.setVisible(true);
         backToList.addClickListener(i -> backToList());
+        stepTwoDiv.setVisible(false);
+        continueButtonStepOne.setEnabled(false);
+
     }
 
     public void stepTwo() {
+        finalPriceCalculator();
+
         navigator.setSelectedTab(tab3);
         backToList.setVisible(false);
         tab2.setEnabled(false);
@@ -598,8 +613,8 @@ public class PackagesView extends VerticalLayout {
         tab3.setEnabled(true);
         listDiv.setVisible(false);
         stepOneDiv.setVisible(false);
-        finalPriceCalculator();
         stepTwoDiv.setVisible(true);
+
     }
 
     public void finalPriceCalculator() {
@@ -607,25 +622,60 @@ public class PackagesView extends VerticalLayout {
                 .getAttribute("transmitter").toString());
         Client client = clientClient.getClient(clientId);
         packagesService.setKG(Float.parseFloat(weight.getValue().toString()));
+        packagesService.setKM(KM);
         packagesService.tripTax = configurationClient.getTripTax();
         Integer groupId = client.getClientGroupId();
         packagesService.setStrategy(groupId);
-        setValue(0);
+        finalPrice.setValue(packagesService.calculatePrice());
     }
 
-    private void setValue(int counter) {
+    private void checkDistance(String destination) {
+        DistanceMatrixApiRequest request = new DistanceMatrixApiRequest(geoApiContext);
+        request.origins(new LatLng(CURRENT_LAT, CURRENT_LNG));
+        request.units(com.google.maps.model.Unit.METRIC);
+        request.destinations(destination).setCallback(new PendingResult.Callback<>() {
+            @Override
+            public void onResult(DistanceMatrix distanceMatrix) {
+                try {
+                    KM = (float) (distanceMatrix.rows[0].elements[0].distance.inMeters / 1000);
+                    getUI().ifPresent(ui -> ui.access(() -> {
+                        continueButtonStepOne.setEnabled(true);
+                    }));
+                } catch (Exception e) {
+                    getUI().ifPresent(ui -> ui.access(() -> {
+                        Notification.show("The address must be accessible within the same continent", 3000, Notification.Position.MIDDLE);
+                        continueButtonStepOne.setEnabled(false);
+                        autocomplete.setValue("");
+                        map.removeMarker(addressMarker);
+                        map.setCenter(new LatLon(CURRENT_LAT, CURRENT_LNG));
+                    }));
+                }
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+                getUI().ifPresent(ui -> ui.access(() -> {
+                    Notification.show("The address must be accessible within the same continent");
+                    continueButtonStepOne.setEnabled(false);
+                }));
+                log.error("An error occurred {}", throwable.getMessage());
+            }
+        });
+    }
+
+    /*private void setValue(int counter) {
         try {
             finalPrice.setValue(packagesService.calculatePrice());
         } catch (Exception e) {
-            if (counter <= 10) {
+            if (counter <= 500) {
                 setValue(counter + 1);
             } else {
-                Notification.show("The address must be accessible within the same continent", 3000, Notification.Position.MIDDLE);
+                Notification.show("Try again", 3000, Notification.Position.MIDDLE);
+                arePriceProblems = true;
                 log.error(e.getMessage());
-                stepOne();
             }
         }
-    }
+    }*/
 
     public void stepOneFinish() {
         boolean isOk = true;
@@ -638,11 +688,6 @@ public class PackagesView extends VerticalLayout {
                 isOk = false;
             }
             if (autocomplete.getValue().equals("")) {
-                isOk = false;
-            }
-
-            if(isDirectionValid()){
-                Notification.show("The direction must bust belong to " + CURRENT_COUNTRY, 3000, Notification.Position.MIDDLE);
                 isOk = false;
             }
 
@@ -671,10 +716,6 @@ public class PackagesView extends VerticalLayout {
         } catch (Exception ex) {
             Notification.show("Please complete the form");
         }
-    }
-
-    private boolean isDirectionValid() {
-        return autocomplete.getValue().contains(CURRENT_COUNTRY);
     }
 
     private boolean isReceiverEmpty() {

@@ -75,9 +75,11 @@ public class ExpeditionView extends VerticalLayout {
 
     private void goBack() {
         selectedPackages = new HashSet<>();
-        toggleDivs();
-        configureExpeditionsDiv();
+        /*toggleDivs();*/
+        expeditionGridDiv.setVisible(true);
+        routeCalculationDiv.setVisible(false);
         expeditionGrid.setEnabled(true);
+        expeditionGrid.deselectAll();
     }
 
     private void updatePackages(String carID) {
