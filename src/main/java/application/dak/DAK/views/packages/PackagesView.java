@@ -115,7 +115,6 @@ public class PackagesView extends VerticalLayout {
     H2 clientId = new H2();
     H2 packageId = new H2();
     TextField groupInfo = new TextField("Group info");
-    private Integer repeatCounter = 0;
 
     public PackagesView() {
         configurationClient = new ConfigurationClient();
@@ -481,6 +480,7 @@ public class PackagesView extends VerticalLayout {
         transmitterPersonTypeList.setVisible(false);
         receiverFilter.clear();
         transmitterFilter.clear();
+        stepTwoDiv.setVisible(false);
         stepThreeDiv.setVisible(false);
         listDiv.setVisible(true);
         paymentTermSelector.clear();
@@ -610,15 +610,20 @@ public class PackagesView extends VerticalLayout {
         packagesService.tripTax = configurationClient.getTripTax();
         Integer groupId = client.getClientGroupId();
         packagesService.setStrategy(groupId);
-        setValue();
+        setValue(0);
     }
 
-    private void setValue() {
+    private void setValue(int counter) {
         try {
             finalPrice.setValue(packagesService.calculatePrice());
-        }
-        catch (NullPointerException e) {
-            setValue();
+        } catch (Exception e) {
+            if (counter <= 10) {
+                setValue(counter + 1);
+            } else {
+                Notification.show("The address must be accessible within the same continent", 3000, Notification.Position.MIDDLE);
+                log.error(e.getMessage());
+                stepOne();
+            }
         }
     }
 
@@ -626,17 +631,21 @@ public class PackagesView extends VerticalLayout {
         boolean isOk = true;
         boolean same = false;
         try {
-            if (VaadinService.getCurrentRequest().getWrappedSession()
-                    .getAttribute("transmitter").toString().equals("")) {
+            if (isTransmitterEmpty()) {
                 isOk = false;
             }
-            if (VaadinService.getCurrentRequest().getWrappedSession()
-                    .getAttribute("receiver").toString().equals("")) {
+            if (isReceiverEmpty()) {
                 isOk = false;
             }
             if (autocomplete.getValue().equals("")) {
                 isOk = false;
             }
+
+            if(isDirectionValid()){
+                Notification.show("The direction must bust belong to " + CURRENT_COUNTRY, 3000, Notification.Position.MIDDLE);
+                isOk = false;
+            }
+
             if (weight.getValue().equals("")) {
                 isOk = false;
             }
@@ -648,9 +657,9 @@ public class PackagesView extends VerticalLayout {
             }
             if (!isOk) {
                 if (same) {
-                    Notification.show("ERROR: The transmitter and the receiver are the same client");
+                    Notification.show("ERROR: The transmitter and the receiver are the same client", 3000, Notification.Position.MIDDLE);
                 } else {
-                    Notification.show("ERROR: Please complete the form");
+                    Notification.show("ERROR: Please complete the form", 3000, Notification.Position.MIDDLE);
                 }
             } else {
                 VaadinService.getCurrentRequest().getWrappedSession()
@@ -662,6 +671,20 @@ public class PackagesView extends VerticalLayout {
         } catch (Exception ex) {
             Notification.show("Please complete the form");
         }
+    }
+
+    private boolean isDirectionValid() {
+        return autocomplete.getValue().contains(CURRENT_COUNTRY);
+    }
+
+    private boolean isReceiverEmpty() {
+        return VaadinService.getCurrentRequest().getWrappedSession()
+                .getAttribute("receiver").toString().equals("");
+    }
+
+    private boolean isTransmitterEmpty() {
+        return VaadinService.getCurrentRequest().getWrappedSession()
+                .getAttribute("transmitter").toString().equals("");
     }
 
     public void backToList() {

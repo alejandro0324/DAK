@@ -22,10 +22,10 @@ public interface PackagesMapper {
     Integer createTracking(@Param("tracking") final Tracking tracking);
 
     @Select("SELECT * FROM V_ReadyPackages WHERE number LIKE #{number}")
-    public List<Package> listAllReadyPackagesLike(@Param("number") final String number);
+    List<Package> listAllReadyPackagesLike(@Param("number") final String number);
 
     @Select("SELECT * FROM V_ReadyPackages")
-    public List<Package> listAllReadyPackages();
+    List<Package> listAllReadyPackages();
 
     @Insert("INSERT INTO T_Detail(trackingID, dateOfDetail, lat, lng, information) values (#{tracking.id}, #{tracking.dateOfTracking}, #{tracking.currentLat}, #{tracking.currentLng}, #{tracking.stateOfTracking})")
     void createTrackingDet(@Param("tracking") final Tracking tracking);
