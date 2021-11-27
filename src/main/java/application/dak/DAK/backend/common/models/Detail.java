@@ -11,11 +11,10 @@ import java.util.Date;
 @AllArgsConstructor
 @Getter
 @Setter
-public class Tracking {
-    private String id;
-    private Double currentLat;
-    private Double currentLng;
-    private String carID;
-    private Date dateOfTracking;
-    private String stateOfTracking;
+public class Detail {
+    String trackingId;
+    Float lat;
+    Float lng;
+    Date dateOfDetail;
+    String information;
 }

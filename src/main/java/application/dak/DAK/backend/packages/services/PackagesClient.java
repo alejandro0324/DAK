@@ -31,9 +31,9 @@ public class PackagesClient {
         return restTemplate.getForObject(url, list.getClass());
     }
 
-    public void createPackage(Package pack) {
+    public Integer createPackage(Package pack) {
         final String url = baseURL + "createPackage";
-        restTemplate.postForObject(url, pack, Package.class);
+        return restTemplate.postForObject(url, pack, Integer.class);
     }
 
     public Tracking createTracking() {

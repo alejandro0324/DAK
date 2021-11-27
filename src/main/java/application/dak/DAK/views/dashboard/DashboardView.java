@@ -27,6 +27,7 @@ public class DashboardView extends VerticalLayout {
 
     public DashboardView(){
         dashboardClient = new DashboardClient();
+        checkTravelProblems();
         ObjectMapper mapper = new ObjectMapper();
         List<Package> list = mapper.convertValue(dashboardClient.listDashboardPackages(), new TypeReference<List<Package>>(){});
         grid.setItems(list);
@@ -50,10 +51,10 @@ public class DashboardView extends VerticalLayout {
             if (list.get(i).getState() == PackageState.IN_LOCAL) {
                 inLocal++;
             }
-            if (list.get(i).getState() == PackageState.IN_TRAVEL_PROBLEM) {
+            if (list.get(i).getState() == PackageState.IN_TRAVEL) {
                 inTravel++;
             }
-            if (list.get(i).getState() == PackageState.IN_TRAVEL) {
+            if (list.get(i).getState() == PackageState.IN_TRAVEL_PROBLEM) {
                 inTravelProblem++;
             }
         }
@@ -81,5 +82,9 @@ public class DashboardView extends VerticalLayout {
 
     public String getDailyIncome() {
         return dashboardClient.getDailyIncome();
+    }
+
+    public void checkTravelProblems() {
+        dashboardClient.checkTravelProblems();
     }
 }

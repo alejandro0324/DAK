@@ -27,4 +27,9 @@ public class DashboardClient {
         List<Package> list = new ArrayList<>();
         return restTemplate.getForObject(url, list.getClass());
     }
+
+    public void checkTravelProblems() {
+        final String url = baseURL + "checkTravelProblems";
+        restTemplate.postForObject(url, null, void.class);
+    }
 }

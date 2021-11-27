@@ -115,6 +115,7 @@ public class PackagesView extends VerticalLayout {
     H2 clientId = new H2();
     H2 packageId = new H2();
     TextField groupInfo = new TextField("Group info");
+    private Integer repeatCounter = 0;
 
     public PackagesView() {
         configurationClient = new ConfigurationClient();
@@ -326,11 +327,12 @@ public class PackagesView extends VerticalLayout {
     private void loadPackagesGrid(List<Package> list) {
         packagesGrid.setItems(list);
         packagesGrid.addColumn(Package::getNumber).setHeader("Number");
-        packagesGrid.addColumn(Package::getState).setHeader("State");
-        packagesGrid.addColumn(Package::getStartDate).setHeader("Start Date");
-        packagesGrid.addColumn(Package::getFinishDate).setHeader("Finish Date");
+        packagesGrid.addColumn(Package::getTrackingId).setHeader("Tracking Id").setAutoWidth(true);
+        packagesGrid.addColumn(Package::getState).setHeader("State").setAutoWidth(true);
+        packagesGrid.addColumn(Package::getStartDate).setHeader("Start Date").setAutoWidth(true);
+        packagesGrid.addColumn(Package::getFinishDate).setHeader("Finish Date").setAutoWidth(true);
         packagesGrid.addColumn(Package::getExtraInfo).setHeader("Extra info.");
-        packagesGrid.addColumn(Package::getAddress).setHeader("Address");
+        packagesGrid.addColumn(Package::getAddress).setHeader("Address").setAutoWidth(true);
     }
 
     private void loadTransmitterPersonList() {
@@ -389,7 +391,7 @@ public class PackagesView extends VerticalLayout {
 
         Package pack = new Package();
         loadPackage(pack);
-        packagesClient.createPackage(pack);
+        pack.setNumber(packagesClient.createPackage(pack));
         FirestoreService.getInstance().log(TAG, "Package received: " + pack);
         ObjectMapper mapper = new ObjectMapper();
         List<Package> list = mapper.convertValue(packagesClient.getAllPackages(), new TypeReference<List<Package>>() {
@@ -398,7 +400,7 @@ public class PackagesView extends VerticalLayout {
         packagesGrid.setItems(list);
 
         String filename = PDF_REPORTS_FOLDER + pack.getTrackingId() + ".pdf";
-        stepThreeInfo.add(new H2("Transmitter Id: " + pack.getTransmitterId()), new H2("Tracking Id: " + pack.getTrackingId()));
+        stepThreeInfo.add(new H2("Package number:" + pack.getNumber()), new H2("Transmitter Id: " + pack.getTransmitterId()), new H2("Tracking Id: " + pack.getTrackingId()));
         if (generateFile(filename, pack))
             stepThreeInfo.add(setDownloadButton(filename));
     }
@@ -465,7 +467,7 @@ public class PackagesView extends VerticalLayout {
     }
 
     public void returnToList() {
-        stepThreeDiv.setVisible(false);
+        stepTwoDiv.setVisible(false);
         navigator.setSelectedTab(tab1);
         tab3.setEnabled(false);
         tab4.setEnabled(false);
@@ -479,7 +481,6 @@ public class PackagesView extends VerticalLayout {
         transmitterPersonTypeList.setVisible(false);
         receiverFilter.clear();
         transmitterFilter.clear();
-        stepTwoDiv.setVisible(false);
         stepThreeDiv.setVisible(false);
         listDiv.setVisible(true);
         paymentTermSelector.clear();
@@ -615,7 +616,8 @@ public class PackagesView extends VerticalLayout {
     private void setValue() {
         try {
             finalPrice.setValue(packagesService.calculatePrice());
-        } catch (Exception e) {
+        }
+        catch (NullPointerException e) {
             setValue();
         }
     }

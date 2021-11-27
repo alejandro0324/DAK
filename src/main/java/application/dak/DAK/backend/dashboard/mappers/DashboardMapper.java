@@ -1,8 +1,11 @@
 package application.dak.DAK.backend.dashboard.mappers;
 
+import application.dak.DAK.backend.common.models.Detail;
 import application.dak.DAK.backend.common.models.Package;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
@@ -15,4 +18,9 @@ public interface DashboardMapper {
     @Select("select * from T_Package where state = 'IN_LOCAL' or state = 'IN_TRAVEL' or state = 'IN_TRAVEL_PROBLEM'")
     public List<Package> listDashboardPackages();
 
+    @Select("SELECT * FROM T_Detail WHERE dateOfDetail < dateadd(minute,-10,getdate())")
+    public List<Detail> checkTravelProblems();
+
+    @Update("UPDATE T_Package SET state = 'IN_TRAVEL_PROBLEM' WHERE trackingId = #{trackingId}")
+    public void setTravelProblem(@Param("trackingId") final String trackingId);
 }

@@ -34,8 +34,9 @@ public class PackagesController {
     }
 
     @PostMapping("/createPackage")
-    public void createPackage(@RequestBody final Package pack) {
+    public Integer createPackage(@RequestBody final Package pack) {
         packagesMapper.createPackage(pack);
+        return pack.getNumber();
     }
 
     @GetMapping("/getAllPackagesLike/{number}")
