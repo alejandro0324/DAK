@@ -21,6 +21,6 @@ public interface DashboardMapper {
     @Select("SELECT * FROM T_Detail WHERE dateOfDetail < dateadd(minute,-10,getdate())")
     public List<Detail> checkTravelProblems();
 
-    @Update("UPDATE T_Package SET state = 'IN_TRAVEL_PROBLEM' WHERE trackingId = #{trackingId}")
+    @Update("UPDATE T_Package SET state = 'IN_TRAVEL_PROBLEM' WHERE trackingId = #{trackingId} AND state = 'IN_TRAVEL'")
     public void setTravelProblem(@Param("trackingId") final String trackingId);
 }
