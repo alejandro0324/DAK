@@ -30,7 +30,7 @@ public interface PackagesMapper {
     @Insert("INSERT INTO T_Detail(trackingID, dateOfDetail, lat, lng, information) values (#{tracking.id}, #{tracking.dateOfTracking}, #{tracking.currentLat}, #{tracking.currentLng}, #{tracking.stateOfTracking})")
     void createTrackingDet(@Param("tracking") final Tracking tracking);
 
-    @Insert("INSERT INTO T_Package (price, startDate, extraInfo, state, trackingId, paymentTermId, transmitterId, receiverId, lat, lng, address, weight) VALUES (#{pack.Price}, #{pack.StartDate}, #{pack.ExtraInfo}, #{pack.State}, #{pack.trackingId}, #{pack.paymentTermId}, #{pack.transmitterId}, #{pack.receiverId}, #{pack.lat}, #{pack.lng}, #{pack.address}, #{pack.weight})")
+    @Insert("INSERT INTO T_Package (price, startDate, extraInfo, state, trackingId, paymentTermId, transmitterId, receiverId, lat, lng, address, weight, employee) VALUES (#{pack.Price}, #{pack.StartDate}, #{pack.ExtraInfo}, #{pack.State}, #{pack.trackingId}, #{pack.paymentTermId}, #{pack.transmitterId}, #{pack.receiverId}, #{pack.lat}, #{pack.lng}, #{pack.address}, #{pack.weight}, #{pack.employee})")
     @Options(useGeneratedKeys = true, keyProperty = "number", keyColumn = "number")
     void createPackage(@Param("pack") final Package pack);
 }

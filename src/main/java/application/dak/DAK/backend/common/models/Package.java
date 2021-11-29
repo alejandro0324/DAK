@@ -27,6 +27,7 @@ public class Package {
     private String address;
     private Double weight;
     private String carID;
+    private String employee;
 
     @Override
     public String toString() {

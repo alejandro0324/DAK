@@ -455,6 +455,8 @@ public class PackagesView extends VerticalLayout {
                 .getAttribute("transmitter").toString()));
         pack.setReceiverId(Integer.parseInt(VaadinService.getCurrentRequest().getWrappedSession()
                 .getAttribute("receiver").toString()));
+        pack.setEmployee(VaadinService.getCurrentRequest().getWrappedSession()
+                .getAttribute("mail").toString());
         Tracking tracking = packagesClient.createTracking();
         pack.setTrackingId(tracking.getId());
         pack.setWeight(weight.getValue());
@@ -643,7 +645,7 @@ public class PackagesView extends VerticalLayout {
                     }));
                 } catch (Exception e) {
                     getUI().ifPresent(ui -> ui.access(() -> {
-                        Notification.show("The address must be accessible within the same continent", 3000, Notification.Position.MIDDLE);
+                        Notification.show("The address must be accessible by car", 3000, Notification.Position.MIDDLE);
                         continueButtonStepOne.setEnabled(false);
                         autocomplete.setValue("");
                         map.removeMarker(addressMarker);
@@ -655,7 +657,7 @@ public class PackagesView extends VerticalLayout {
             @Override
             public void onFailure(Throwable throwable) {
                 getUI().ifPresent(ui -> ui.access(() -> {
-                    Notification.show("The address must be accessible within the same continent");
+                    Notification.show("The address must be accessible within the by car");
                     continueButtonStepOne.setEnabled(false);
                 }));
                 log.error("An error occurred {}", throwable.getMessage());
